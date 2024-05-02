@@ -83,7 +83,7 @@ def getScientificNameAndRank(taxoId):
             response.json()["results"][0]["rank"]
         )   
 
-def getBetterEvidence(taxonomy): 
+def getBetterProteins(taxonomy): 
     proteome = ""
     species_id = taxonomy["taxonId"]
     url = f"https://rest.uniprot.org/proteomes/search?query=(organism_id:{species_id})&size=500&format=json"

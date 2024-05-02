@@ -10,7 +10,7 @@ def getBetterGenome(scientific_name, taxonomy, bank):
     return result
 
 
-def getBetterEvidence(scientific_name, taxonomy, bank):
+def getBetterProteins(scientific_name, taxonomy, bank):
     lineage_scientific_names = [object['scientificName'] for object in taxonomy.get("lineage")]
     categories = getNCBICategories(lineage_scientific_names)
     mySpecies = ncbi_ftp.getDataFromFTP("proteins", scientific_name, categories, bank)

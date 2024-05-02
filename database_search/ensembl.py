@@ -8,7 +8,7 @@ def getBetterGenome(scientific_name):
     return result
 
 
-def getBetterEvidence(scientific_name, taxonomy):
+def getBetterProteins(scientific_name, taxonomy):
     mySpecies = ensembl_ftp.getDataFromFTP("pep", scientific_name)
     if mySpecies["url"]:
         taxonId = uniprot.getTaxonID(mySpecies["scientific_name"])

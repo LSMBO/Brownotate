@@ -53,6 +53,7 @@ parser.add_argument('--dbs-only', action='store_true', help='Compute only the da
 parser.add_argument('-a', '--auto', action='store_true', help='Launch Brownotate in fully automatic mode')
 parser.add_argument('--no-seq', action='store_true', help='Used with dbs_only or auto if you do not want to consider the sequencing data')
 parser.add_argument('--no-genome', action='store_true', help='Used with dbs_only or auto if you do not want to consider the genome data')
+parser.add_argument('--no-prots', action='store_true', help='Used with dbs_only if you do not want to consider the protein data')
 
 # Genenal
 parser.add_argument('--resume', help='Number of the run to resume if it was interrupted')
@@ -113,7 +114,7 @@ if args.resume:
     args.resume = True
     
     # Warning if any other arguments has been used
-    for arg in ['species', 'dbs_only', 'no_seq', 'no_genome', 'output_dir', 'cpus', 'auto', 'dna_sra', 'dna_file', 'sra_bl', 'illumina_only', 
+    for arg in ['species', 'dbs_only', 'no_seq', 'no_genome', 'no_prots', 'output_dir', 'cpus', 'auto', 'dna_sra', 'dna_file', 'sra_bl', 'illumina_only', 
                 'skip_fastp', 'skip_bowtie2', 'skip_filtering', 'genome', 'evidence', 'remove_included_sequences', 'skip_remove_redundancy', 
                 'skip_busco_assembly', 'skip_busco_annotation', 'skip_busco', 'skip_brownaming', 'brownaming_maxrank', 'brownaming_maxtaxo',
                 'brownaming_exclude', 'brownaming_db']:
@@ -151,6 +152,13 @@ if args.no_seq:
 if args.no_genome:
     if not args.dbs_only and not args.auto:
         raise ValueError(f"\nThe parameter --no-genome cannot be used without --dbs-only or --auto.")
+
+# --no-prots
+if args.no_prots:
+    if not args.dbs_only:
+        raise ValueError(f"\nThe parameter --no-prots cannot be used without --dbs-only.")
+    if args.auto:
+        warnings.warn(f"The parameter --no-prots is always set to True with --auto.", UserWarning)
     
 # --dna-sra and --dna-file
 for arg in ['dna_sra', 'dna_file']:
@@ -356,13 +364,13 @@ else:
     logger.info(f'Brownotate start')
 
 if args.dbs_only:
-    pipelines.run_database_search(STATE, database_search, logger, dbs_only=True, no_seq=args.no_seq, no_genome=args.no_genome)
+    pipelines.run_database_search(STATE, database_search, logger, dbs_only=True, no_seq=args.no_seq, no_genome=args.no_genome, no_prots=args.no_prots)
 
 if args.auto:
     
     # 1. Search data --> Database_Search.json
     if not os.path.exists('Database_Search.json'):
-        data = pipelines.run_database_search(STATE, database_search, logger, no_seq=args.no_seq, no_genome=args.no_genome)
+        data = pipelines.run_database_search(STATE, database_search, logger, no_seq=args.no_seq, no_genome=args.no_genome, no_prots=True)
     else:
         data = json.load('Database_Search.json')
     
@@ -512,7 +520,7 @@ if annotation_tool=="augustus":
             logger.info(f"The evidence data has already been found.")
         else:
             logger.info(f"Search for the different evidence annotations...")
-            STATE["evidence_search"] = pipelines.run_get_evidence(STATE, database_search)
+            STATE["evidence_search"] = pipelines.run_get_proteins(STATE, database_search)
 
         if "evidence_file" in STATE:
             logger.info(f"The evidence file has already been downloaded.")

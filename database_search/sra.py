@@ -96,8 +96,11 @@ def getTop10Sra(scientific_name, type, max_bases=100000000000, illumina_only=Fal
                 # Loop through the runs to find the ones with the most bases
                 for run in runs:
                     if (run['total_bases']):
+                        total_bases = int(run['total_bases'])
+                        if run["library_type"] == "paired":
+                            total_bases *= 2
                         # If the run has more bases than the max_bases limit, it goes to the next run
-                        if max_bases and int(run['total_bases']) > max_bases:
+                        if max_bases and total_bases > max_bases:
                             continue
                         # If we haven't found 10 runs yet, add the current run to the list
                         if len(max_bases_list) < 10:
@@ -134,39 +137,18 @@ def getBetterSra(scientific_name, type, illumina_only, sra_blacklist, config):
     CONFIG = config
     # Get top 10 sequencing runs for the given scientific name
     top10 = getTop10Sra(scientific_name, type, illumina_only=illumina_only, sra_blacklist=sra_blacklist)
-    # Set a maximum number of bases to keep in the result
-    max_base = 100000000000
-    # Initialize an empty list to hold the selected sequencing runs
-    result = []
-    # Initialize a counter for the total number of bases in the selected runs
-    total_bases = 0
-    # Loop through the top 10 sequencing runs
     for entry in top10:
-        # Get the number of bases in this sequencing run
-        real_total_bases = int(entry["total_bases"])
-        # Double the number of bases if the sequencing library is paired-end
-        if entry["library_type"] == "paired":
-            real_total_bases *= 2
-
-        result.append(entry)
-        total_bases += real_total_bases
-        # If the platform is Oxford Nanopore or PacBio SMRT, it return the sequencing as a JSON string
+        # If the platform is Oxford Nanopore or PacBio SMRT, it return the sequencing as a JSON
         if entry["platform"] == "OXFORD_NANOPORE" or entry["platform"] == "PACBIO_SMRT":
             return {
                 'data_type' : type.lower()+"seq",
                 'database' : 'sra',
-                'runs' : result
+                'runs' : [entry]
             }
-        # Otherwise, if adding this entry would not exceed the maximum number of bases and the platform is not Oxford Nanopore or PacBio SMRT, append it to the result list
-        else:
-            if total_bases + real_total_bases <= max_base:
-                result.append(entry)
-                total_bases += real_total_bases
-    # Return the selected sequencing runs as a JSON string
     return {
             'data_type' : type.lower()+"seq",
             'database' : 'sra',
-            'runs' : result
+            'runs' : top10
             }
                
 def getRuns(entry):

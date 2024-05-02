@@ -7,13 +7,14 @@ STATE = None
 DATABASE_SEARCH = None
 LOGGER = None
 
-def set_globals(state, database_search, logger, no_seq, no_genome):
+def set_globals(state, database_search, logger, no_seq, no_genome, no_prots):
     global STATE, DATABASE_SEARCH, LOGGER, NO_SEQ, NO_GENOME
     STATE = state
     DATABASE_SEARCH = database_search
     LOGGER = logger
     NO_SEQ = no_seq
     NO_GENOME = no_genome
+    NO_PROTS = no_prots
     
 
 def makeJson(title, object):
@@ -53,7 +54,7 @@ def search_database():
             search_data_res = json.load(database_search_file)
         LOGGER.info('Retrieved the different data from the Database_Search.json file.')
     else:
-        search_data_res = DATABASE_SEARCH.all(STATE['scientific_name'], STATE['taxo'], STATE["args"]['illumina_only'], STATE["args"]['sra_bl'], STATE['config'], no_seq=NO_SEQ, no_genome=NO_GENOME)
+        search_data_res = DATABASE_SEARCH.all(STATE['scientific_name'], STATE['taxo'], STATE["args"]['illumina_only'], STATE["args"]['sra_bl'], STATE['config'], no_seq=NO_SEQ, no_genome=NO_GENOME, no_prots=NO_PROTS)
         makeJson("Database_Search.json", search_data_res)
         LOGGER.info(f"The database search with for {STATE['scientific_name']} are in the file Database_search.json")
     return search_data_res
@@ -83,8 +84,8 @@ def end_run():
         displayJSON(os.path.join(STATE['output_directory'], "Database_Search.json"))
         exit()
         
-def run_database_search(state, database_search, logger, dbs_only=False, no_seq=False, no_genome=False):
-    set_globals(state, database_search, logger, no_seq, no_genome)
+def run_database_search(state, database_search, logger, dbs_only=False, no_seq=False, no_genome=False, no_prots=False):
+    set_globals(state, database_search, logger, no_seq, no_genome, no_prots)
     logger.info(f"Search for the DNA sequencing, RNA sequencing, genomes and protein annotations for {STATE['scientific_name']} in different databases.")
     data = search_database()
     if dbs_only:

@@ -1,32 +1,28 @@
 from .sra import *
 from .genome import *
-from .evidence import *
+from .proteins import *
 
-def all(scientific_name, taxonomy, illumina_only, sra_blacklist, config, no_seq=False, no_genome=False):
-	
-	if no_seq:
+def all(scientific_name, taxonomy, illumina_only, sra_blacklist, config, no_seq=False, no_genome=False, no_prots=False):
+	dna = {}
+	rna = {}
+	genome = {}
+	proteins = {}
+		
+	if no_prots==False:
+		proteins = getBetterProteins(scientific_name, taxonomy)
+	if no_genome==False:
 		genome = getBetterGenome(scientific_name, taxonomy)
-		result = {
-			"genome" : genome
-		}
-
-	elif no_genome:
-		dna = getBetterSra(scientific_name, "DNA", illumina_only, sra_blacklist, config)
-		rna = getBetterSra(scientific_name, "RNA", illumina_only, sra_blacklist, config)   
-		result = {
-		"dnaseq" : dna,
-		"rnaseq" : rna,
-		}  
-	else:
+	if no_seq==False:
 		dna = getBetterSra(scientific_name, "DNA", illumina_only, sra_blacklist, config)
 		rna = getBetterSra(scientific_name, "RNA", illumina_only, sra_blacklist, config)
-		genome = getBetterGenome(scientific_name, taxonomy)
-		result = {
+
+	return {
 		"dnaseq" : dna,
 		"rnaseq" : rna,
-		"genome" : genome
-		}
-	return result
+		"genome" : genome,
+		"proteins" : proteins
+	}
+	
 
 def dna(scientific_name, illumina_only, sra_blacklist):
 	dna = getBetterSra(scientific_name, "DNA", illumina_only=illumina_only, sra_blacklist=sra_blacklist)
@@ -41,7 +37,7 @@ def rna(scientific_name, illumina_only, sra_blacklist):
 		raise ValueError(f"No rna sequencing data have been found for {scientific_name} in the NCBI-SRA database.")
 	return rna
 
-def evidence(scientific_name, taxonomy):
-    evidence = getBetterEvidence(scientific_name, taxonomy)
-    return evidence
+def proteins(scientific_name, taxonomy):
+	proteins = getBetterProteins(scientific_name, taxonomy)
+	return proteins
 
