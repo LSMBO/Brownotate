@@ -58,13 +58,13 @@ def sra_db_search(library_strategy, scientific_name=None, accession=None, illumi
         return "Nothing"
     search_handle.close()
     if accession is not None:
-        return jsonFromRecord(record, accession)
+        return jsonFromRecord(record, scientific_name, accession)
     return record
 
-def jsonFromRecord(record, accession=None):
+def jsonFromRecord(record, scientific_name, accession=None):
     if "IdList" in record and len(record["IdList"]) == 1:
         entry = getRunInfoList(record["IdList"])[0]
-        runs = getRuns(entry)
+        runs = getRuns(entry, scientific_name)
         if accession is not None:
             for run in runs:
                 if (run["accession"]==accession):
@@ -90,7 +90,7 @@ def getTop10Sra(scientific_name, type, max_bases=100000000000, illumina_only=Fal
             max_bases_list = []
             # Loop through the run information for each entry
             for entry in run_info_list:
-                runs = getRuns(entry)
+                runs = getRuns(entry, scientific_name)
                 if not runs:
                     continue
                 # Loop through the runs to find the ones with the most bases
@@ -100,26 +100,26 @@ def getTop10Sra(scientific_name, type, max_bases=100000000000, illumina_only=Fal
                         if run["library_type"] == "paired":
                             total_bases *= 2
                         # If the run has more bases than the max_bases limit, it goes to the next run
-                        if max_bases and total_bases > max_bases:
+                        if total_bases > max_bases:
                             continue
                         # If we haven't found 10 runs yet, add the current run to the list
-                        if len(max_bases_list) < 10:
+                        if (len(max_bases_list) < 10) and (total_bases <= (max_bases-sum(max_bases_list))) :
                             top_entries.append(run)
-                            max_bases_list.append(int(run['total_bases']))
+                            max_bases_list.append(total_bases)
 
-                        # This 'else' code is execute if "if len(max_bases_list) == 10: break" is remove. 
                         # It filters the better sequencing based on the number of base instead of the relevance 
                         else:
-                            # Find the run with the lowest number of bases in the top 10
-                            min_bases_index = max_bases_list.index(min(max_bases_list))
+                            # Find the index of the lowest run in the top 10
+                            min_index = max_bases_list.index(min(max_bases_list))
+                            # Lower value
+                            lower_value = sorted(max_bases_list)[0]
+                            # Sum of the 9 highest values
+                            top_nine_sum = sum(sorted(max_bases_list)[1:])                 
                             # If the current run has more bases than the lowest run in the top 10, replace it
-                            if int(run['total_bases']) > max_bases_list[min_bases_index]:
-                                top_entries[min_bases_index] = run
-                                max_bases_list[min_bases_index] = int(run['total_bases'])
-                                
-                    # Stop iterating if we've found 10 non-empty entries. Uncomment if you want to filter based on the relevance
-                    #if len(max_bases_list) == 10:
-                    #    break
+                            if (total_bases > lower_value) and (total_bases <= (max_bases-top_nine_sum)):
+                                top_entries[min_index] = run
+                                max_bases_list[min_index] = total_bases
+
 
             # Sort the top_entries list by total_bases
             top_entries.sort(key=lambda x: int(x['total_bases']), reverse=True)
@@ -151,7 +151,7 @@ def getBetterSra(scientific_name, type, illumina_only, sra_blacklist, config):
             'runs' : top10
             }
                
-def getRuns(entry):
+def getRuns(entry, scientific_name):
     entry_id = entry["Id"]
          
     # Extract platform, title, and library type information from the experiment XML using regular expressions
@@ -186,6 +186,7 @@ def getRuns(entry):
         run_dict['library_type'] = library_type
         run_dict['accession'] = accession
         run_dict['total_bases'] = total_bases
+        run_dict['scientific_name'] = scientific_name
                                        
         # Add the result dictionary to the list of results
         runs.append(run_dict)

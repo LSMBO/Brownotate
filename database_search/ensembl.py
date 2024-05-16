@@ -1,32 +1,20 @@
 from . import ensembl_ftp
 from . import uniprot
+from . import ncbi
 
-def getBetterGenome(scientific_name):
-    result = ensembl_ftp.getDataFromFTP("dna", scientific_name)
-    taxonId = uniprot.getTaxonID(result["scientific_name"])
-    result["taxonId"] = taxonId  
-    return result
-
-
-def getBetterProteins(scientific_name, taxonomy):
-    mySpecies = ensembl_ftp.getDataFromFTP("pep", scientific_name)
-    if mySpecies["url"]:
-        taxonId = uniprot.getTaxonID(mySpecies["scientific_name"])
-        mySpecies["taxonId"] = taxonId  
-        return mySpecies
-    else:
-        lineage_taxo_ids = [object['taxonId'] for object in taxonomy.get("lineage")]
-        exclude_ids = [taxonomy.get("taxonId")]
-        for taxo_id in lineage_taxo_ids:
-            children = uniprot.getChildren(taxo_id, exclude_ids)
-            exclude_ids.extend(children)
-
-            for child_id in children:
-                child_name, child_rank = uniprot.getScientificNameAndRank(child_id)
-                if child_rank!="species":
-                    continue
-                infos = ensembl_ftp.getDataFromFTP("pep", child_name)
-                if infos["url"]:
-                    taxonId = uniprot.getTaxonID(infos["scientific_name"])
-                    infos["taxonId"] = taxonId    
-                    return infos
+def getBetterEnsembl(scientific_name, taxonomy, data_type, search_similar_species=False):
+    result = ensembl_ftp.getDataFromFTP(data_type, [scientific_name])  # Pass a list of scientific names
+    if search_similar_species == False or result:
+        return result
+    
+    lineage_taxo_ids = [object['taxonId'] for object in reversed(taxonomy.get("lineage"))]
+    exclude_ids = []
+    for taxo_id in lineage_taxo_ids:
+        children_names = uniprot.getChildren(taxo_id, exclude_ids, "scientificName")
+        infos = ensembl_ftp.getDataFromFTP(data_type, children_names)
+        if infos:
+            taxonId = uniprot.getTaxonID(infos["scientific_name"])
+            if not taxonId:
+                taxonId = ncbi.getTaxonID(infos["scientific_name"])
+            infos["taxonId"] = taxonId
+            return infos

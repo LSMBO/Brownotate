@@ -2,25 +2,29 @@ from .sra import *
 from .genome import *
 from .proteins import *
 
-def all(scientific_name, taxonomy, illumina_only, sra_blacklist, config, no_seq=False, no_genome=False, no_prots=False):
-	dna = {}
-	rna = {}
-	genome = {}
-	proteins = {}
-		
+def all(scientific_name, taxonomy, illumina_only, sra_blacklist, config, no_seq=False, no_genome=False, no_prots=False, search_similar_species=False):
+	synonyms_scientific_names = [scientific_name]
+	if 'synonyms' in taxonomy.keys():
+		synonyms_scientific_names += taxonomy['synonyms']
+	dna_data = {}
+	rna_data = {}
+	genome_data = {}
+	proteins_data = {}
 	if no_prots==False:
-		proteins = getBetterProteins(scientific_name, taxonomy)
+		proteins_data = proteins(synonyms_scientific_names, taxonomy, search_similar_species)
+
 	if no_genome==False:
-		genome = getBetterGenome(scientific_name, taxonomy)
+		genome_data = genome(synonyms_scientific_names, taxonomy, search_similar_species)
+   
 	if no_seq==False:
-		dna = getBetterSra(scientific_name, "DNA", illumina_only, sra_blacklist, config)
-		rna = getBetterSra(scientific_name, "RNA", illumina_only, sra_blacklist, config)
+		dna_data = getBetterSra(scientific_name, "DNA", illumina_only, sra_blacklist, config)
+		rna_data = getBetterSra(scientific_name, "RNA", illumina_only, sra_blacklist, config)
 
 	return {
-		"dnaseq" : dna,
-		"rnaseq" : rna,
-		"genome" : genome,
-		"proteins" : proteins
+		"dnaseq" : dna_data,
+		"rnaseq" : rna_data,
+		"genome" : genome_data,
+		"proteins" : proteins_data
 	}
 	
 
@@ -37,7 +41,9 @@ def rna(scientific_name, illumina_only, sra_blacklist):
 		raise ValueError(f"No rna sequencing data have been found for {scientific_name} in the NCBI-SRA database.")
 	return rna
 
-def proteins(scientific_name, taxonomy):
-	proteins = getBetterProteins(scientific_name, taxonomy)
-	return proteins
+def genome(synonyms_scientific_names, taxonomy, search_similar_species=False):
+    return getGenomes(synonyms_scientific_names, taxonomy, search_similar_species)
+
+def proteins(synonyms_scientific_names, taxonomy, search_similar_species=False):
+    return getProteins(synonyms_scientific_names, taxonomy, search_similar_species)
 

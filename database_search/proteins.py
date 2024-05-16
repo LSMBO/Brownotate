@@ -2,15 +2,40 @@ from . import uniprot
 from . import ensembl
 from . import ncbi
 
-def getBetterProteins(scientific_name, taxonomy):
+def getProteins(synonyms_scientific_names, taxonomy, search_similar_species):
+    json_ensembl = {}
     if not isProkaryotaOrArchaea(taxonomy):
-        json_ensembl = ensembl.getBetterProteins(scientific_name, taxonomy)
-    else:
-        json_ensembl = {}
+        i = 0
+        while not json_ensembl and i < len(synonyms_scientific_names):
+            json_ensembl = ensembl.getBetterEnsembl(synonyms_scientific_names[i], taxonomy, 'pep', False)
+            i += 1
+        if not json_ensembl and search_similar_species:
+            json_ensembl = ensembl.getBetterEnsembl(synonyms_scientific_names[0], taxonomy, 'pep', True)
     
-    json_uniprot = uniprot.getBetterProteins(taxonomy)
-    json_refseq = ncbi.getBetterProteins(scientific_name, taxonomy, "refseq")
-    json_genbank = ncbi.getBetterProteins(scientific_name, taxonomy, "genbank")
+    json_uniprot = {}
+    i = 0
+    while not json_uniprot and i < len(synonyms_scientific_names):
+        json_uniprot = uniprot.getBetterUniprot(taxonomy, False)
+        i += 1
+    if not json_uniprot and search_similar_species:
+        json_uniprot = uniprot.getBetterUniprot(taxonomy, True)
+    
+    json_refseq = {}
+    i = 0
+    while not json_refseq and i < len(synonyms_scientific_names):
+        json_refseq = ncbi.getBetterNCBI(synonyms_scientific_names[i], taxonomy, 'refseq', 'proteins', False)
+        i += 1
+    if not json_refseq and search_similar_species:
+        json_refseq = ncbi.getBetterNCBI(synonyms_scientific_names[0], taxonomy, 'refseq', 'proteins', True)
+
+    json_genbank = {}
+    i = 0  
+    while not json_genbank and i < len(synonyms_scientific_names):
+        json_genbank = ncbi.getBetterNCBI(synonyms_scientific_names[i], taxonomy, 'genbank', 'proteins', False)
+        i += 1
+    if not json_genbank and search_similar_species:
+        json_genbank = ncbi.getBetterNCBI(synonyms_scientific_names[0], taxonomy, 'genbank', 'proteins', True)
+        
     return {
         "ensembl": json_ensembl,
         "uniprot": json_uniprot,

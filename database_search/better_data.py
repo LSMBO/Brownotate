@@ -21,20 +21,18 @@ def betterData(search_data_res):
 
     return {}
 
-def betterEvidence(evidence, my_taxo):
+def betterEvidence(evidence, taxo):
     ensembl_evidence_score = -1
-
     if evidence["ensembl"]:
         ensembl_evidence = evidence["ensembl"]
-        ensembl_evidence_score = getEvidenceScore(ensembl_evidence, my_taxo)
+        ensembl_evidence_score = getEvidenceScore(ensembl_evidence, taxo)
     uniprot_evidence = evidence["uniprot"]   
-    uniprot_evidence_score = getEvidenceScore(uniprot_evidence, my_taxo)
+    uniprot_evidence_score = getEvidenceScore(uniprot_evidence, taxo)
     refseq_evidence = evidence["refseq"]
-    refseq_evidence_score = getEvidenceScore(refseq_evidence, my_taxo)
+    refseq_evidence_score = getEvidenceScore(refseq_evidence, taxo)
     genbank_evidence = evidence["genbank"]
-    genbank_evidence_score = getEvidenceScore(genbank_evidence, my_taxo)
+    genbank_evidence_score = getEvidenceScore(genbank_evidence, taxo)
 
-    # Compare les scores et retourne la meilleure evidence
     best_evidence = None
     best_score = -1
     if ensembl_evidence_score > best_score:
@@ -52,37 +50,25 @@ def betterEvidence(evidence, my_taxo):
  
     return best_evidence
 
-
-def getEvidenceScore(evidence, my_taxo):
+def getEvidenceScore(evidence, taxo):
     evidence_taxon_id = evidence["taxonId"]
-    my_taxo_id = my_taxo["taxonId"]
-    
-    # Set the initial score
+    taxo_id = taxo["taxonId"]
     score = 100
-    
-    # Check if the evidence and my_taxo are the same species
-    if (evidence_taxon_id == my_taxo_id):
-        # If they are the same, return a perfect score
+
+    if (int(evidence_taxon_id) == taxo_id):
         return score
     
     evidence_taxon = uniprot.taxo(evidence_taxon_id)
-    
-    # Get the lineage (list of taxonIDs from species to kingdom) for the evidence and my_taxo
     evidence_lineage = [item["taxonId"] for item in evidence_taxon["lineage"]]
-    my_taxo_lineage = [item["taxonId"] for item in my_taxo["lineage"]]
-    
-    # Set the initial penalty
-    initial_penalty = 5
+    taxo_lineage = [item["taxonId"] for item in taxo["lineage"]]
+    initial_penalty = 1
     
     # Check how far apart the two lineages are by iterating over the evidence lineage
     for id in evidence_lineage:
-        if (id in my_taxo_lineage):
-            # If the current id is in the my_taxo lineage, return the current score minus the penalty
+        if (id in taxo_lineage):
             return score - initial_penalty
         else:
-            # If the current id is not in the my_taxo lineage, increase the penalty
-            initial_penalty += 2
-            
+            initial_penalty += 1
     return 0
 
 

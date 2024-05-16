@@ -1,5 +1,4 @@
 from error_handling.ftp import cwd_ftp, connect_ftp
-from . import uniprot
 
 def getDataFromFTP(type, scientific_name, categories, bank):
     # Format scientific name and set priority directories
@@ -54,7 +53,6 @@ def getDataFromFTP(type, scientific_name, categories, bank):
                             break
                         ftp.cwd(cwd) # Revenir au répertoire courant
 
-
                 # Exit the priority directory loop if the genome has been found
                 if url:
                     break
@@ -66,11 +64,13 @@ def getDataFromFTP(type, scientific_name, categories, bank):
     # Close the FTP connection
     ftp.quit()
     scientific_name = scientific_name.replace("_", " ")
+    if url == "":
+        return {}
     return {
         "url" : url,
         "ftp" : "ftp.ncbi.nlm.nih.gov",
         "data_type" : data_type, 
         "quality" : quality,
         "database" : bank,
-        "scientific_name" :  scientific_name
+        "scientific_name" : scientific_name
     }

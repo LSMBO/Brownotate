@@ -20,6 +20,3 @@ def download(better_data):
         res = download_ftp(better_data, "evidence")
         res["file_name"] = gunzip(res["file_name"])
         return res
-    
-
-        

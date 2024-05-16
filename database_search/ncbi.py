@@ -1,39 +1,47 @@
 from . import ncbi_ftp
 from . import uniprot
+import requests
 
-def getBetterGenome(scientific_name, taxonomy, bank):
+def getTaxonID(scientific_name):
+    base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+    params = {
+        "db": "taxonomy",
+        "term": scientific_name,
+        "retmode": "json"
+    }
+    response = requests.get(base_url, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        taxon_ids = data.get("esearchresult", {}).get("idlist", [])
+        if taxon_ids:
+            return taxon_ids[0]
+
+    return None
+
+
+def getBetterNCBI(scientific_name, taxonomy, bank, data_type, search_similar_species=False): # data_type = genome or proteins
     lineage_scientific_names = [object['scientificName'] for object in taxonomy.get("lineage")]
     categories = getNCBICategories(lineage_scientific_names)
-    result = ncbi_ftp.getDataFromFTP("genome", scientific_name, categories, bank)
-    taxonId = uniprot.getTaxonID(result["scientific_name"])
-    result["taxonId"] = taxonId  
-    return result
-
-
-def getBetterProteins(scientific_name, taxonomy, bank):
-    lineage_scientific_names = [object['scientificName'] for object in taxonomy.get("lineage")]
-    categories = getNCBICategories(lineage_scientific_names)
-    mySpecies = ncbi_ftp.getDataFromFTP("proteins", scientific_name, categories, bank)
-    if mySpecies["url"]:
-        taxonId = uniprot.getTaxonID(mySpecies["scientific_name"])
-        mySpecies["taxonId"] = taxonId  
-        return mySpecies
-    else:
-        lineage_taxo_ids = [object['taxonId'] for object in taxonomy.get("lineage")]
-        exclude_ids = [taxonomy.get("taxonId")]
-        for taxo_id in lineage_taxo_ids:
-            children = uniprot.getChildren(taxo_id, exclude_ids)
-            exclude_ids.extend(children)
-            for child_id in children:
-                child_name, child_rank = uniprot.getScientificNameAndRank(child_id)
-                if child_rank!="species":
-                    continue
-                infos = ncbi_ftp.getDataFromFTP("proteins", child_name, categories, bank)
-                if infos["url"]:
-                    taxonId = uniprot.getTaxonID(infos["scientific_name"])
-                    infos["taxonId"] = taxonId
-                    return infos    
-
+    result = ncbi_ftp.getDataFromFTP(data_type, scientific_name, categories, bank)
+    if search_similar_species == False or "url" in result:
+        if "url" in result:
+            result["taxonId"] = getTaxonID(result["scientific_name"])  
+        return result
+    
+    lineage_taxo_ids = [object['taxonId'] for object in reversed(taxonomy.get("lineage"))]
+    exclude_ids = []
+    for taxo_id in lineage_taxo_ids:
+        children =  uniprot.getChildren(taxo_id, exclude_ids)
+        exclude_ids.extend(children)
+        
+        for child_id in children:
+            child_name, child_rank, child_id = uniprot.getScientificNameAndRank(child_id)
+            if child_rank!="species":
+                continue
+            result = ncbi_ftp.getDataFromFTP(data_type, child_name, categories, bank)
+            if result:
+                result["taxonId"] = child_id
+                return result  
     
 def getNCBICategories(lineage_scientific_names): 
     categories=[]
@@ -56,3 +64,5 @@ def getNCBICategories(lineage_scientific_names):
         categories = ["invertebrate", "protozoa"]
 
     return categories
+
+

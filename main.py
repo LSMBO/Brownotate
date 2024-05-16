@@ -364,15 +364,16 @@ else:
     logger.info(f'Brownotate start')
 
 if args.dbs_only:
-    pipelines.run_database_search(STATE, database_search, logger, dbs_only=True, no_seq=args.no_seq, no_genome=args.no_genome, no_prots=args.no_prots)
+    pipelines.run_database_search(STATE, database_search, logger, dbs_only=True, no_seq=args.no_seq, no_genome=args.no_genome, no_prots=args.no_prots, search_similar_species=True)
 
 if args.auto:
     
     # 1. Search data --> Database_Search.json
     if not os.path.exists('Database_Search.json'):
-        data = pipelines.run_database_search(STATE, database_search, logger, no_seq=args.no_seq, no_genome=args.no_genome, no_prots=True)
+        data = pipelines.run_database_search(STATE, database_search, logger, no_seq=args.no_seq, no_genome=args.no_genome, no_prots=True, search_similar_species=False)
     else:
-        data = json.load('Database_Search.json')
+        with open('Database_Search.json', 'r') as file:    
+            data = json.load(file)
     
     # 2. Select the better data --> Better_data.json
     if not os.path.exists('Better_data.json'):
@@ -382,7 +383,8 @@ if args.auto:
         else:
             STATE["genome_entry"] = better_data    
     else:
-        better_data = json.load('Better_data.json')
+        with open('Better_data.json', 'r') as file:
+            better_data = json.load(file)
     makeJson("state.json", STATE)
     
     # 3. Download the better data
@@ -399,8 +401,9 @@ if args.auto:
     elif better_data["data_type"] == "genome":
         if "genome_file" not in STATE:
             logger.info(f"Download the genome file ...")
-            genome_file = pipelines.run_download(better_data, download)
-            STATE["genome_file"] = genome_file
+            genome_entry = pipelines.run_download(better_data, download)
+            STATE["genome_entry"] = genome_entry
+            STATE["genome_file"] = genome_entry["file_name"]
             logger.info(f"The genome file have been successfully downloaded.")        
     makeJson("state.json", STATE)
     
@@ -520,7 +523,7 @@ if annotation_tool=="augustus":
             logger.info(f"The evidence data has already been found.")
         else:
             logger.info(f"Search for the different evidence annotations...")
-            STATE["evidence_search"] = pipelines.run_get_proteins(STATE, database_search)
+            STATE["evidence_search"] = pipelines.run_get_evidence(STATE, database_search)
 
         if "evidence_file" in STATE:
             logger.info(f"The evidence file has already been downloaded.")
