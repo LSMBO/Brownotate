@@ -1,1 +1,0 @@
- 8762 of the 8997 queries have been annotated ((97, 2)% )
