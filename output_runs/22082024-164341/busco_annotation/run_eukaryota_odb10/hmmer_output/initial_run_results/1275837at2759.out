@@ -1,0 +1,17 @@
+#                                                                               --- full sequence --- -------------- this domain -------------   hmm coord   ali coord   env coord
+# target name           accession   tlen query name           accession   qlen   E-value  score  bias   #  of  c-Evalue  i-Evalue  score  bias  from    to  from    to  from    to  acc description of target
+#   ------------------- ---------- ----- -------------------- ---------- ----- --------- ------ ----- --- --- --------- --------- ------ ----- ----- ----- ----- ----- ----- ----- ---- ---------------------
+augustus_predicted_1340 -            338 1275837at2759        -            245  1.7e-104  346.4   3.4   1   2     6e-97     1e-93  311.1   0.1     1   218     8   247     8   258 0.93 -
+augustus_predicted_1340 -            338 1275837at2759        -            245  1.7e-104  346.4   3.4   2   2     6e-13     1e-09   36.0   1.0   205   245   260   300   251   300 0.89 -
+augustus_predicted_27   -            440 1275837at2759        -            245    0.0016   15.7   0.3   1   1   1.7e-05      0.03   11.6   0.3    63   125   155   225    92   305 0.75 -
+augustus_predicted_4688 -            306 1275837at2759        -            245     0.005   14.1   0.1   1   1   4.8e-06    0.0082   13.4   0.1    27   114    63   158    27   172 0.65 -
+#
+# Program:         hmmsearch
+# Version:         3.1b2 (February 2015)
+# Pipeline mode:   SEARCH
+# Query file:      ../../stats/eukaryota_odb10/hmms/1275837at2759.hmm
+# Target file:     /home/centos/br/bin/Brownotate-1.2.0/runs/584a0dab-d3a4-4320-afed-b310965cc1e7/annotation/augustus_annotation.faa
+# Option settings: hmmsearch --domtblout /home/centos/br/bin/Brownotate-1.2.0/runs/584a0dab-d3a4-4320-afed-b310965cc1e7/busco_annotation/run_eukaryota_odb10/hmmer_output/initial_run_results/1275837at2759.out --cpu 1 ../../stats/eukaryota_odb10/hmms/1275837at2759.hmm /home/centos/br/bin/Brownotate-1.2.0/runs/584a0dab-d3a4-4320-afed-b310965cc1e7/annotation/augustus_annotation.faa 
+# Current dir:     /home/centos/br/bin/Brownotate-1.2.0/runs/584a0dab-d3a4-4320-afed-b310965cc1e7
+# Date:            Thu Aug 22 20:16:22 2024
+# [ok]

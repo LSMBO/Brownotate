@@ -1,0 +1,18 @@
+#                                                                               --- full sequence --- -------------- this domain -------------   hmm coord   ali coord   env coord
+# target name           accession   tlen query name           accession   qlen   E-value  score  bias   #  of  c-Evalue  i-Evalue  score  bias  from    to  from    to  from    to  acc description of target
+#   ------------------- ---------- ----- -------------------- ---------- ----- --------- ------ ----- --- --- --------- --------- ------ ----- ----- ----- ----- ----- ----- ----- ---- ---------------------
+augustus_predicted_4421 -            620 1404162at2759        -            216   1.7e-42  143.6  12.8   1   5   3.4e-13   1.7e-09   35.7   1.0     2    52   279   331   278   344 0.92 -
+augustus_predicted_4421 -            620 1404162at2759        -            216   1.7e-42  143.6  12.8   2   5   0.00014      0.71    7.6   0.0    51    74   360   383   354   389 0.88 -
+augustus_predicted_4421 -            620 1404162at2759        -            216   1.7e-42  143.6  12.8   3   5   2.4e-19   1.3e-15   55.8   0.4    61   140   402   491   396   500 0.86 -
+augustus_predicted_4421 -            620 1404162at2759        -            216   1.7e-42  143.6  12.8   4   5   4.1e-08   0.00021   19.1   0.1   136   166   506   536   500   542 0.90 -
+augustus_predicted_4421 -            620 1404162at2759        -            216   1.7e-42  143.6  12.8   5   5   3.3e-11   1.7e-07   29.3   0.0   162   204   550   592   547   599 0.93 -
+#
+# Program:         hmmsearch
+# Version:         3.1b2 (February 2015)
+# Pipeline mode:   SEARCH
+# Query file:      ../../stats/eukaryota_odb10/hmms/1404162at2759.hmm
+# Target file:     /home/centos/br/bin/Brownotate-1.2.0/runs/584a0dab-d3a4-4320-afed-b310965cc1e7/annotation/augustus_annotation.faa
+# Option settings: hmmsearch --domtblout /home/centos/br/bin/Brownotate-1.2.0/runs/584a0dab-d3a4-4320-afed-b310965cc1e7/busco_annotation/run_eukaryota_odb10/hmmer_output/initial_run_results/1404162at2759.out --cpu 1 ../../stats/eukaryota_odb10/hmms/1404162at2759.hmm /home/centos/br/bin/Brownotate-1.2.0/runs/584a0dab-d3a4-4320-afed-b310965cc1e7/annotation/augustus_annotation.faa 
+# Current dir:     /home/centos/br/bin/Brownotate-1.2.0/runs/584a0dab-d3a4-4320-afed-b310965cc1e7
+# Date:            Thu Aug 22 20:16:23 2024
+# [ok]

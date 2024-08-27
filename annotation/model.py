@@ -4,14 +4,14 @@ import subprocess
 
 conda_prefix = os.environ["CONDA_PREFIX"]
 augustus_config_path = conda_prefix + "/config"
-scripts_path = conda_prefix + "/scripts"
+conda_bin_path = conda_prefix + "/bin"
 env = os.environ.copy()
 env["AUGUSTUS_CONFIG_PATH"] = augustus_config_path
 
 def model(genesraw):
     remove_zero_bp_genes(genesraw)
     run_id = os.path.basename(os.getcwd())
-    command = f"{scripts_path}/new_species.pl --species={run_id}"
+    command = f"{conda_bin_path}/new_species.pl --species={run_id}"
     if os.path.exists(f"{augustus_config_path}/species/{run_id}"):
         shutil.rmtree(f"{augustus_config_path}/species/{run_id}")
     try:
@@ -37,7 +37,7 @@ def model(genesraw):
     command = f"etraining --species={run_id} {genesraw} 2>&1 | grep \"in sequence\" | perl -pe 's/.*n sequence (\S+):.*/$1/' | sort -u > annotation/bad.lst"
     print(command)
     subprocess.run(command, shell=True, check=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    command = f"{scripts_path}/filterGenes.pl annotation/bad.lst {genesraw} > annotation/genes.gb"
+    command = f"{conda_bin_path}/filterGenes.pl annotation/bad.lst {genesraw} > annotation/genes.gb"
     print(command)
     subprocess.run(command, shell=True, check=True, env=env)
     command = f"grep -c LOCUS annotation/genes.gb"

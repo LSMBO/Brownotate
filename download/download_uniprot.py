@@ -1,16 +1,28 @@
 import requests
 import sys
 import os
+import re
 
 def download_uniprot(data):
-    # Construct file name
-    proteome_id = data["proteome_id"]
-    species_name = data["scientific_name"]
-    species_name_for_file = species_name.replace(' ', '_')
+    
+    if "proteome_id" not in data:
+        url = data["url"] + "&size=500&format=fasta"
+        accession_match = re.search(r'/proteomes/(.+)', data["url"])
+        if accession_match:
+            proteome_id = accession_match.group(1)
+        else:
+            raise ValueError("Invalid URL format. Cannot extract proteome_id.")
+        species_name_for_file = "unknown"
+    else:   
+        url = data["url"]     
+        proteome_id = data["proteome_id"]
+        species_name = data["scientific_name"]
+        species_name_for_file = species_name.replace(' ', '_')
+    
     file_name = f"evidence/{species_name_for_file}_{proteome_id}.faa"
     
     # Download the first page of the FASTA file
-    response = get_url(data["url"])
+    response = get_url(url)
     
     # Write the content of the first page to file
     write_fasta(response.text, file_name)

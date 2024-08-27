@@ -3,7 +3,6 @@ import os
 
 def fasta_split(file_path, cpus):
     # Open the FASTA file
-    print(f"fasta_split .{file_path}.")
     fasta_records = SeqIO.parse(file_path, 'fasta')
     fasta_records = sorted(fasta_records, key=lambda x: len(x.seq), reverse=True)
 

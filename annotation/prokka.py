@@ -5,7 +5,7 @@ import shutil
 def prokka(genome, cpus):
     if os.path.exists("annotation"):
         shutil.rmtree("annotation")
-    command = f"prokka --outdir annotation --proteins FASTA --prefix prokka_annotation --cpus {cpus} {genome}"
+    command = f"prokka --outdir annotation --prefix prokka_annotation --cpus {cpus} --noanno --norrna --notrna {genome}"
     print(command)
     subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     clear()

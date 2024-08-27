@@ -1,5 +1,5 @@
-from .uniprot import *
-from .search import *
-from .better_data import *
+from database_search.uniprot import UniprotTaxo
+from database_search.search import *
+from database_search.better_data import *
 
 

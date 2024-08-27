@@ -70,8 +70,10 @@ parser.add_argument('--skip-bowtie2', action='store_true', help='Skip the bowtie
 parser.add_argument('--skip-filtering', action='store_true', help='Skip the two read filtering steps (skip fastp and bowtie2)')
 
 # Annotation
-parser.add_argument('-g', '--genome', help='Name of the input genome assembly')
-parser.add_argument('-e', '--evidence', help='Path to the protein evidence database for annotation')
+parser.add_argument('-g', '--genome', help='File path to the input genome assembly')
+parser.add_argument('-gu', '--genome-url', help='Assembly download URL (from Ensembl or NCBI FTP)')
+parser.add_argument('-e', '--evidence', help='File path to the protein evidence database for annotation')
+parser.add_argument('-eu', '--evidence-url', help='Evdence download URL (Uniprot rest url or Ensembl/NCBI FTP)')
 parser.add_argument('--remove-included-sequences', action='store_true', help='Consider two protein sequences as redundant if one sequence is strictly included in the other')
 parser.add_argument('--skip-remove-redundancy', action='store_true', help='Skip the step that removes redundancy in the protein sequences')
 
@@ -115,7 +117,7 @@ if args.resume:
     
     # Warning if any other arguments has been used
     for arg in ['species', 'dbs_only', 'no_seq', 'no_genome', 'no_prots', 'output_dir', 'cpus', 'auto', 'dna_sra', 'dna_file', 'sra_bl', 'illumina_only', 
-                'skip_fastp', 'skip_bowtie2', 'skip_filtering', 'genome', 'evidence', 'remove_included_sequences', 'skip_remove_redundancy', 
+                'skip_fastp', 'skip_bowtie2', 'skip_filtering', 'genome', 'genome_url', 'evidence', 'evidence_url', 'remove_included_sequences', 'skip_remove_redundancy', 
                 'skip_busco_assembly', 'skip_busco_annotation', 'skip_busco', 'skip_brownaming', 'brownaming_maxrank', 'brownaming_maxtaxo',
                 'brownaming_exclude', 'brownaming_db']:
         if getattr(args, arg):
@@ -127,7 +129,7 @@ if not args.species and not args.resume:
 
 # --dbs-only
 if args.dbs_only:
-    for arg in ['auto', 'dna_sra', 'dna_file', 'skip_fastp', 'skip_bowtie2', 'skip_filtering', 'genome', 
+    for arg in ['auto', 'dna_sra', 'dna_file', 'skip_fastp', 'skip_bowtie2', 'skip_filtering', 'genome', 'genome_url',
                 'evidence', 'skip_busco_assembly', 'skip_busco_annotation', 'skip_busco', 'remove_included_sequences',
                 'skip_remove_redundancy', 'skip_brownaming', 'brownaming_maxrank', 'brownaming_maxtaxo',
                 'brownaming_exclude', 'brownaming_db']:
@@ -136,7 +138,7 @@ if args.dbs_only:
                
 # --auto
 if args.auto:
-    for arg in ['dna_sra', 'dna_file', 'genome']:
+    for arg in ['dna_sra', 'dna_file', 'genome', 'genome_url']:
         if getattr(args, arg):
             setattr(args, arg, None)
             warnings.warn(f"The parameter --{arg.replace('_', '-')} will be ignored because --auto is activated.", UserWarning)
@@ -169,24 +171,38 @@ for arg in ['dna_sra', 'dna_file']:
             raise ValueError(f"\nThe parameters --{arg} and --illumina-only cannot be used together.")
         if args.genome:
             raise ValueError(f"\nThe parameters --{arg} and --genome cannot be used together.")
-
+        if args.genome_url:
+            raise ValueError(f"\nThe parameters --{arg} and --genome-url cannot be used together.")
 # --sra-bl
 if args.sra_bl:
     if args.genome:
         raise ValueError(f"\nThe parameters --sra-bl and --genome cannot be used together.")
-
+    if args.genome_url:
+        raise ValueError(f"\nThe parameters --sra-bl and --genome-url cannot be used together.")
+    
 # --dbs-only
 if args.illumina_only:
     if args.genome:
         raise ValueError(f"\nThe parameters --illumina-only and --genome cannot be used together.")
-
+    if args.genome_url:
+        raise ValueError(f"\nThe parameters --illumina-only and --genome-url cannot be used together.")
+    
 # --genome
 if args.genome:
-    for arg in ['skip_fastp', 'skip_bowtie2', 'skip_filtering', 'skip_busco_assembly']:
+    for arg in ['skip_fastp', 'skip_bowtie2', 'skip_filtering', 'skip_busco_assembly', 'genome_url']:
         if getattr(args, arg):
             raise ValueError(f"\nThe parameters --genome and --{arg.replace('_', '-')} cannot be used together.")
+        
+# --genome-url
+if args.genome_url:
+    for arg in ['skip_fastp', 'skip_bowtie2', 'skip_filtering', 'skip_busco_assembly', 'genome']:
+        if getattr(args, arg):
+            raise ValueError(f"\nThe parameters --genome_url and --{arg.replace('_', '-')} cannot be used together.")
 
-
+# --evidence
+if args.evidence and args.evidence_url:
+    raise ValueError(f"\nThe parameters --evidence and --evidence-url cannot be used together.")
+    
 # --skip-remove-redundancy
 if args.skip_remove_redundancy and args.remove_included_sequences:
     raise ValueError(f"\nThe parameters --skip-remove-redundancy and --remove-included-sequences cannot be used together.")
@@ -246,20 +262,20 @@ if args.brownaming_maxrank:
 
 BROWNAMING_MAX_TAXO = ""
 if args.brownaming_maxtaxo:
-    taxo = database_search.taxo(args.brownaming_maxtaxo)
+    taxo = database_search.UniprotTaxo(args.brownaming_maxtaxo)
     if (taxo is None):
         raise ValueError(f"\nTaxo \"{taxo}\" not found.")
     else:
-        BROWNAMING_MAX_TAXO = taxo["taxonId"]
+        BROWNAMING_MAX_TAXO = taxo.get_tax_id()
 
 BROWNAMING_EXCLUDE = []
 if args.brownaming_exclude:
     for taxo in args.brownaming_exclude:
-        taxo = database_search.taxo(taxo)
+        taxo = database_search.UniprotTaxo(taxo)
         if (taxo is None):
             raise ValueError(f"\nTaxo \"{taxo}\" not found.")
         else:
-            BROWNAMING_EXCLUDE.append(taxo["taxonId"])
+            BROWNAMING_EXCLUDE.append(taxo.get_tax_id())
 
 BROWNAMING_CUSTOM_DB = []
 if args.brownaming_db:
@@ -290,11 +306,11 @@ if args.resume:
     WORKING_DIR = os.path.join(SCRIPT_DIR, "runs", RUN_ID)
     os.chdir(WORKING_DIR)
     
-    taxo_json = {}
+    taxo_uniprot = {}
     with open("taxo.json", 'r') as taxo_file:
-        taxo_json = json.load(taxo_file)
-    TAXON_ID = taxo_json.get("taxonId")
-    SCIENTIFIC_NAME = taxo_json.get("scientificName")
+        taxo_uniprot = json.load(taxo_file)
+    TAXON_ID = taxo_uniprot.get("taxonId")
+    SCIENTIFIC_NAME = taxo_uniprot.get("scientificName")
     STATE = {}
     with open("state.json", 'r') as state_file:
         STATE = json.load(state_file)
@@ -312,12 +328,14 @@ else:
     makeJson("param.json", vars(args))
 
     # Create taxo.json with taxonomy data
-    taxo_json = database_search.taxo(args.species)
-    if taxo_json is None:
-        raise ValueError(f"\nTaxo \"{args.species}\" not found.")
-    TAXON_ID = taxo_json.get("taxonId")
-    SCIENTIFIC_NAME = taxo_json.get("scientificName")
-    makeJson(f"taxo.json", taxo_json)    
+    try:
+        taxo_uniprot = database_search.UniprotTaxo(args.species)
+    except ValueError as e:
+        raise ValueError(f"\nTaxonomy data not found: {e}")
+    TAXON_ID = taxo_uniprot.get_tax_id()
+    SCIENTIFIC_NAME = taxo_uniprot.get_scientific_name()
+
+    makeJson(f"taxo.json", taxo_uniprot.get_taxonomy())    
         
 # Path of the output directory
 OUTPUT_FASTA_FILENAME = f"{SCIENTIFIC_NAME.replace(' ', '_')}_Brownotate.fasta"
@@ -346,7 +364,7 @@ else:
     # Initiates STATE
     STATE = {
         "scientific_name" : SCIENTIFIC_NAME,
-        "taxo" : taxo_json,
+        "taxo" : taxo_uniprot.get_taxonomy(),
         "output_fasta_filepath" : OUTPUT_FASTA_FILEPATH,
         "output_directory" : OUTPUT_DIRECTORY,
         "config" : CONFIG,
@@ -438,12 +456,16 @@ else:
     # If sequencing files have been provided 
     if args.dna_file:
         STATE["dnaseq_files"] = input_dnaseq_files
-        makeJson("state.json", STATE)
 
-    # If the genome file have been provided 
+    # If the genome download url has been provided
+    if args.genome_url:
+        genome_file = pipelines.run_download(args.genome_url, download) 
+        STATE['genome_file'] = genome_file['file_name']
+    # If the genome file has been provided 
     if args.genome:
         STATE["genome_file"] = input_genome_file
-        makeJson("state.json", STATE)
+        
+    makeJson("state.json", STATE)
 
 # Filter the sequencing data
 if "dnaseq_files" in STATE:
@@ -496,7 +518,7 @@ if "dnaseq_files" in STATE:
 
 # Annotation with augustus for eukaryots and with prokka for prokaryots
 annotation_tool = "augustus"
-for entry in taxo_json["lineage"]:
+for entry in taxo_uniprot.get_taxonomy()["lineage"]:
     if entry["taxonId"] == 2 or entry["taxonId"] == 2157:
         annotation_tool = "prokka"
         break
@@ -510,12 +532,17 @@ if annotation_tool=="prokka":
         STATE["annotation"] = pipelines.run_prokka(STATE, annotation)
         makeJson("state.json", STATE)
         logger.info(f"Prokka annotation has been successfully completed.")    
-
+        
 if annotation_tool=="augustus":
     logger.info(f"{SCIENTIFIC_NAME} is an eukaryote species, the Augustus pipeline will be used.")
-    
     # Searching for evidence file for augustus annotation 
-    if args.evidence: # The user provided the evidence in the inputs
+    
+    # If the evidence download url has been provided
+    if args.evidence_url:
+        STATE["evidence_file"] = pipelines.run_download(args.evidence_url, download)
+    
+    # If the evidence file have been provided
+    if args.evidence: 
         STATE["evidence_file"] = input_evidence_file
     
     else: # The evidence file have to be searched and downloaded
@@ -530,6 +557,7 @@ if annotation_tool=="augustus":
         else:           
             logger.info(f"Download the evidence file...")
             STATE["evidence_file"] = pipelines.run_download(STATE["evidence_search"], download)["file_name"]
+            
              
     makeJson("state.json", STATE)
     logger.info(f"The best evidence annotation have been successfully downloaded.")

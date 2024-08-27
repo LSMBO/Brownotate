@@ -1,0 +1,37 @@
+#                                                                            --- full sequence --- -------------- this domain -------------   hmm coord   ali coord   env coord
+# target name        accession   tlen query name           accession   qlen   E-value  score  bias   #  of  c-Evalue  i-Evalue  score  bias  from    to  from    to  from    to  acc description of target
+#------------------- ---------- ----- -------------------- ---------- ----- --------- ------ ----- --- --- --------- --------- ------ ----- ----- ----- ----- ----- ----- ----- ---- ---------------------
+DMGIDEJL_03653       -            308 1069591at2           -            187   1.4e-39  134.4   8.5   1   2   3.2e-35   1.8e-32  111.2   0.2     2   130    12   175    11   188 0.73 unannotated protein
+DMGIDEJL_03653       -            308 1069591at2           -            187   1.4e-39  134.4   8.5   2   2   3.2e-06    0.0018   16.6   3.1   166   187   264   285   203   285 0.90 unannotated protein
+DMGIDEJL_04728       -            764 1069591at2           -            187    0.0002   19.8   0.1   1   2    0.0061       3.4    5.9   0.0     2    22   234   254   233   257 0.90 unannotated protein
+DMGIDEJL_04728       -            764 1069591at2           -            187    0.0002   19.8   0.1   2   2   0.00018       0.1   10.9   0.0     2    21   506   525   505   528 0.91 unannotated protein
+DMGIDEJL_04990       -            874 1069591at2           -            187    0.0038   15.6   0.0   1   2     0.093        52    2.1   0.0     3    28   202   226   201   229 0.88 unannotated protein
+DMGIDEJL_04990       -            874 1069591at2           -            187    0.0038   15.6   0.0   2   2   0.00029      0.16   10.3   0.0     3    35   604   635   602   645 0.85 unannotated protein
+DMGIDEJL_02693       -            356 1069591at2           -            187     0.017   13.4   0.0   1   1   6.8e-05     0.038   12.3   0.0     2    21    62    81    61    86 0.91 unannotated protein
+DMGIDEJL_02955       -            465 1069591at2           -            187     0.029   12.7   0.1   1   2   0.00021      0.12   10.7   0.0     2    21    59    78    58    88 0.92 unannotated protein
+DMGIDEJL_02955       -            465 1069591at2           -            187     0.029   12.7   0.1   2   2         2   1.1e+03   -2.3   0.0   142   157   414   429   394   436 0.71 unannotated protein
+DMGIDEJL_04096       -            839 1069591at2           -            187     0.032   12.6   0.1   1   2       0.4   2.3e+02    0.0   0.1    98   151   508   563   503   566 0.70 unannotated protein
+DMGIDEJL_04096       -            839 1069591at2           -            187     0.032   12.6   0.1   2   2   0.00056      0.31    9.3   0.0     3    29   574   600   572   606 0.84 unannotated protein
+DMGIDEJL_01973       -            427 1069591at2           -            187     0.034   12.5   0.0   1   1   0.00016     0.091   11.1   0.0     2    25   116   137   115   141 0.88 unannotated protein
+DMGIDEJL_04734       -            884 1069591at2           -            187     0.043   12.2   0.6   1   3      0.61   3.4e+02   -0.6   0.1     3    27   273   296   272   299 0.87 unannotated protein
+DMGIDEJL_04734       -            884 1069591at2           -            187     0.043   12.2   0.6   2   3    0.0012      0.65    8.3   0.0     3    21   611   629   609   637 0.89 unannotated protein
+DMGIDEJL_04734       -            884 1069591at2           -            187     0.043   12.2   0.6   3   3       1.5   8.7e+02   -1.9   0.0   102   144   729   770   712   772 0.75 unannotated protein
+DMGIDEJL_04727       -           1127 1069591at2           -            187     0.044   12.1   0.3   1   2      0.12        70    1.7   0.0     2    28   257   283   256   291 0.76 unannotated protein
+DMGIDEJL_04727       -           1127 1069591at2           -            187     0.044   12.1   0.3   2   2    0.0019       1.1    7.6   0.1     3    21   538   556   536   563 0.90 unannotated protein
+DMGIDEJL_03974       -            425 1069591at2           -            187     0.046   12.0   0.0   1   1   0.00024      0.13   10.5   0.0     2    21   122   141   121   145 0.91 unannotated protein
+DMGIDEJL_02120       -            253 1069591at2           -            187     0.046   12.0   0.0   1   1   0.00017     0.096   11.0   0.0     2    23   102   123   101   163 0.88 unannotated protein
+DMGIDEJL_05900       -            765 1069591at2           -            187      0.07   11.4   0.2   1   2       2.5   1.4e+03   -2.6   0.0     5    20   223   238   221   241 0.83 unannotated protein
+DMGIDEJL_05900       -            765 1069591at2           -            187      0.07   11.4   0.2   2   2   0.00056      0.32    9.3   0.0     4    22   503   521   500   525 0.88 unannotated protein
+DMGIDEJL_04726       -           1135 1069591at2           -            187      0.17   10.2   6.3   1   3     0.028        16    3.8   0.1     2    21   275   294   274   296 0.90 unannotated protein
+DMGIDEJL_04726       -           1135 1069591at2           -            187      0.17   10.2   6.3   2   3   0.00062      0.35    9.2   0.1     2    21   551   570   550   575 0.90 unannotated protein
+DMGIDEJL_04726       -           1135 1069591at2           -            187      0.17   10.2   6.3   3   3       5.2   2.9e+03   -3.6   0.8   123   159   883   919   850   936 0.49 unannotated protein
+#
+# Program:         hmmsearch
+# Version:         3.1b2 (February 2015)
+# Pipeline mode:   SEARCH
+# Query file:      ../../stats/bacteria_odb10/hmms/1069591at2.hmm
+# Target file:     /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f/annotation/prokka_annotation.faa
+# Option settings: hmmsearch --domtblout /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f/busco_annotation/run_bacteria_odb10/hmmer_output/1069591at2.out --cpu 1 ../../stats/bacteria_odb10/hmms/1069591at2.hmm /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f/annotation/prokka_annotation.faa 
+# Current dir:     /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f
+# Date:            Mon Aug 26 17:08:51 2024
+# [ok]

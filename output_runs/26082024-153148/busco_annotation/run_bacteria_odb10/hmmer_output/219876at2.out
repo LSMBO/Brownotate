@@ -1,0 +1,40 @@
+#                                                                            --- full sequence --- -------------- this domain -------------   hmm coord   ali coord   env coord
+# target name        accession   tlen query name           accession   qlen   E-value  score  bias   #  of  c-Evalue  i-Evalue  score  bias  from    to  from    to  from    to  acc description of target
+#------------------- ---------- ----- -------------------- ---------- ----- --------- ------ ----- --- --- --------- --------- ------ ----- ----- ----- ----- ----- ----- ----- ---- ---------------------
+DMGIDEJL_00001       -            430 219876at2            -            282   2.2e-76  255.6   0.3   1   1   7.9e-79   3.6e-76  254.9   0.3    13   276    91   409    85   414 0.86 unannotated protein
+DMGIDEJL_02724       -            711 219876at2            -            282   1.3e-05   23.4   0.0   1   2   0.00017     0.077   11.0   0.0    49    77   222   250   214   292 0.83 unannotated protein
+DMGIDEJL_02724       -            711 219876at2            -            282   1.3e-05   23.4   0.0   2   2   0.00063      0.29    9.2   0.0    49    78   495   524   484   542 0.87 unannotated protein
+DMGIDEJL_04726       -           1135 219876at2            -            282     2e-05   22.8   0.0   1   2   1.6e-05    0.0071   14.4   0.0    41    72   266   297   254   306 0.86 unannotated protein
+DMGIDEJL_04726       -           1135 219876at2            -            282     2e-05   22.8   0.0   2   2    0.0094       4.3    5.3   0.0    49    68   550   569   538   578 0.87 unannotated protein
+DMGIDEJL_02932       -            298 219876at2            -            282   7.3e-05   21.0   0.2   1   3   0.00015     0.067   11.3   0.0    37    69    20    52    13    61 0.83 unannotated protein
+DMGIDEJL_02932       -            298 219876at2            -            282   7.3e-05   21.0   0.2   2   3       2.5   1.1e+03   -2.6   0.0    95   110   136   151    96   157 0.72 unannotated protein
+DMGIDEJL_02932       -            298 219876at2            -            282   7.3e-05   21.0   0.2   3   3    0.0028       1.3    7.0   0.1   132   183   190   236   171   285 0.68 unannotated protein
+DMGIDEJL_02070       -            224 219876at2            -            282   0.00016   19.8   0.0   1   1   5.3e-07   0.00024   19.3   0.0    42    89    91   141    68   166 0.74 unannotated protein
+DMGIDEJL_04865       -            341 219876at2            -            282    0.0016   16.5   0.0   1   2   9.8e-06    0.0045   15.1   0.0    45   108    53   120    25   129 0.75 unannotated protein
+DMGIDEJL_04865       -            341 219876at2            -            282    0.0016   16.5   0.0   2   2       2.8   1.3e+03   -2.8   0.0   182   205   228   251   221   253 0.79 unannotated protein
+DMGIDEJL_07190       -            282 219876at2            -            282    0.0017   16.5   0.0   1   1     7e-06    0.0032   15.6   0.0    24    71    14    57    10    72 0.81 unannotated protein
+DMGIDEJL_07160       -            697 219876at2            -            282     0.005   15.0   0.1   1   3   0.00037      0.17    9.9   0.0    42    69   281   308   269   317 0.78 unannotated protein
+DMGIDEJL_07160       -            697 219876at2            -            282     0.005   15.0   0.1   2   3      0.54   2.5e+02   -0.5   0.1    80   108   379   408   375   416 0.81 unannotated protein
+DMGIDEJL_07160       -            697 219876at2            -            282     0.005   15.0   0.1   3   3      0.32   1.5e+02    0.3   0.0   186   229   550   591   539   596 0.82 unannotated protein
+DMGIDEJL_04656       -            126 219876at2            -            282    0.0063   14.6   0.1   1   1   1.5e-05    0.0069   14.5   0.1    94   154     3    63     1   124 0.73 unannotated protein
+DMGIDEJL_04879       -            540 219876at2            -            282    0.0067   14.5   0.0   1   1     3e-05     0.014   13.5   0.0    39    71   202   234   192   246 0.86 unannotated protein
+DMGIDEJL_02929       -            446 219876at2            -            282    0.0067   14.5   0.0   1   2   3.9e-05     0.018   13.1   0.0    46    69   173   196   163   222 0.82 unannotated protein
+DMGIDEJL_02929       -            446 219876at2            -            282    0.0067   14.5   0.0   2   2       2.6   1.2e+03   -2.7   0.0   120   165   336   379   334   383 0.81 unannotated protein
+DMGIDEJL_04734       -            884 219876at2            -            282     0.016   13.3   0.0   1   2    0.0032       1.5    6.9   0.0    27    70   250   292   243   298 0.77 unannotated protein
+DMGIDEJL_04734       -            884 219876at2            -            282     0.016   13.3   0.0   2   2     0.054        25    2.8   0.0    50    67   610   627   596   637 0.87 unannotated protein
+DMGIDEJL_04771       -            320 219876at2            -            282     0.017   13.2   0.1   1   1   5.7e-05     0.026   12.6   0.1    38    68   122   152    96   159 0.80 unannotated protein
+DMGIDEJL_01534       -            531 219876at2            -            282     0.047   11.8   0.0   1   1   0.00018     0.083   10.9   0.0    38    68   215   244   210   249 0.88 unannotated protein
+DMGIDEJL_01560       -           1161 219876at2            -            282     0.062   11.4   0.2   1   2   0.00045      0.21    9.6   0.0    48    69    63    84    50    90 0.87 unannotated protein
+DMGIDEJL_01560       -           1161 219876at2            -            282     0.062   11.4   0.2   2   2       1.9   8.9e+02   -2.3   0.1    52    67   772   787   768   791 0.82 unannotated protein
+DMGIDEJL_04728       -            764 219876at2            -            282     0.072   11.1   0.1   1   2   0.00091      0.42    8.6   0.0    38    72   222   256   218   262 0.88 unannotated protein
+DMGIDEJL_04728       -            764 219876at2            -            282     0.072   11.1   0.1   2   2      0.64   2.9e+02   -0.7   0.0    50    62   506   518   502   525 0.83 unannotated protein
+#
+# Program:         hmmsearch
+# Version:         3.1b2 (February 2015)
+# Pipeline mode:   SEARCH
+# Query file:      ../../stats/bacteria_odb10/hmms/219876at2.hmm
+# Target file:     /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f/annotation/prokka_annotation.faa
+# Option settings: hmmsearch --domtblout /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f/busco_annotation/run_bacteria_odb10/hmmer_output/219876at2.out --cpu 1 ../../stats/bacteria_odb10/hmms/219876at2.hmm /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f/annotation/prokka_annotation.faa 
+# Current dir:     /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f
+# Date:            Mon Aug 26 17:08:52 2024
+# [ok]

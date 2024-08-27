@@ -1,0 +1,19 @@
+# BUSCO version is: 5.7.1 
+# The lineage dataset is: eukaryota_odb10 (Creation date: 2020-09-10, number of genomes: 70, number of BUSCOs: 255)
+# Summarized benchmarking in BUSCO notation for file /home/centos/br/bin/Brownotate-1.2.0/runs/b283acc0-5629-444b-ad7a-7147f201d246/annotation/augustus_annotation.faa
+# BUSCO was run in mode: proteins
+
+	***** Results: *****
+
+	C:93.0%[S:92.2%,D:0.8%],F:3.5%,M:3.5%,n:255	   
+	237	Complete BUSCOs (C)			   
+	235	Complete and single-copy BUSCOs (S)	   
+	2	Complete and duplicated BUSCOs (D)	   
+	9	Fragmented BUSCOs (F)			   
+	9	Missing BUSCOs (M)			   
+	255	Total BUSCO groups searched		   
+
+Dependencies and versions:
+	hmmsearch: 3.1
+	python: sys.version_info(major=3, minor=9, micro=19, releaselevel='final', serial=0)
+	busco: 5.7.1

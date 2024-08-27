@@ -5,7 +5,7 @@ import shutil
 from Bio import SeqIO
 
 work_dir = f"annotation/augustus_work_dir"
-scripts_path = os.environ["CONDA_PREFIX"] + "/scripts"
+conda_bin_path = os.environ["CONDA_PREFIX"] + "/bin"
 
 def augustus(genome_files):
     run_id = os.path.basename(os.getcwd())
@@ -34,7 +34,7 @@ def run_augustus(genome_file, output_name, run_id):
         command = f"augustus --species={run_id} ../{genome_file} > {output_gff_file}"
         print(command)
         subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        command = f"{scripts_path}/getAnnoFasta.pl {output_name}.gff"
+        command = f"{conda_bin_path}/getAnnoFasta.pl {output_name}.gff"
         print(command)
         subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return output_aa_file

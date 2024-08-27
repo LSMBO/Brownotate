@@ -7,7 +7,6 @@ def connect_ftp(ftp_name, retries=5, wait_seconds=10):
     attempt = 0
     connected = False
     ftp = None
-
     while attempt < retries and not connected:
         try:
             ftp = ftplib.FTP(ftp_name)

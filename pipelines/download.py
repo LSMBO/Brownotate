@@ -10,9 +10,25 @@ def gunzip(file):
 
 
 def run_download(data, download):
+    if isinstance(data, str):
+        ftp = 'uniprot'
+        database = 'uniprot'
+        if 'ftp.ncbi.nlm.nih.gov' in data:
+            ftp = "ftp.ncbi.nlm.nih.gov"
+            database = "ncbi"
+        if "ftp.ensembl.org" in data:
+            ftp = "ftp.ensembl.org"
+            database = "ensembl"
+        data = {
+            "url" : data,
+            "ftp" : ftp,
+            "data_type" : "genome", 
+            "database" : database,
+            "scientific_name" : "Unknown"
+        }
+        
     data_type = data["data_type"] # dnaseq, genome, proteins
     database = data["database"] # sra, ensembl, genbank, refseq, uniprot
-
     if (database == "sra"):
         return download.download_sra(data)
     

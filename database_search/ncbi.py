@@ -1,5 +1,5 @@
 from . import ncbi_ftp
-from . import uniprot
+from database_search.uniprot import UniprotTaxo
 import requests
 
 def getTaxonID(scientific_name):
@@ -22,26 +22,23 @@ def getTaxonID(scientific_name):
 def getBetterNCBI(scientific_name, taxonomy, bank, data_type, search_similar_species=False): # data_type = genome or proteins
     lineage_scientific_names = [object['scientificName'] for object in taxonomy.get("lineage")]
     categories = getNCBICategories(lineage_scientific_names)
-    result = ncbi_ftp.getDataFromFTP(data_type, scientific_name, categories, bank)
-    if search_similar_species == False or "url" in result:
-        if "url" in result:
-            result["taxonId"] = getTaxonID(result["scientific_name"])  
-        return result
-    
+    results = ncbi_ftp.getDataFromFTP(data_type, [scientific_name], categories, bank)
+    if search_similar_species == False or "url" in results:
+        if "url" in results:
+            results["taxonId"] = getTaxonID(results["scientific_name"])  
+        return results
     lineage_taxo_ids = [object['taxonId'] for object in reversed(taxonomy.get("lineage"))]
     exclude_ids = []
     for taxo_id in lineage_taxo_ids:
-        children =  uniprot.getChildren(taxo_id, exclude_ids)
+        children =  UniprotTaxo.fetch_children(taxo_id, exclude_ids, "scientificName")
         exclude_ids.extend(children)
+        results = ncbi_ftp.getDataFromFTP(data_type, children, categories, bank)
+        if results:
+            taxonId = getTaxonID(results["scientific_name"])
+            results["taxonId"] = taxonId
+            return results
+    return {}
         
-        for child_id in children:
-            child_name, child_rank, child_id = uniprot.getScientificNameAndRank(child_id)
-            if child_rank!="species":
-                continue
-            result = ncbi_ftp.getDataFromFTP(data_type, child_name, categories, bank)
-            if result:
-                result["taxonId"] = child_id
-                return result  
     
 def getNCBICategories(lineage_scientific_names): 
     categories=[]

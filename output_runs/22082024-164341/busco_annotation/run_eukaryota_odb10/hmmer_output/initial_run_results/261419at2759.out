@@ -1,0 +1,28 @@
+#                                                                               --- full sequence --- -------------- this domain -------------   hmm coord   ali coord   env coord
+# target name           accession   tlen query name           accession   qlen   E-value  score  bias   #  of  c-Evalue  i-Evalue  score  bias  from    to  from    to  from    to  acc description of target
+#   ------------------- ---------- ----- -------------------- ---------- ----- --------- ------ ----- --- --- --------- --------- ------ ----- ----- ----- ----- ----- ----- ----- ---- ---------------------
+augustus_predicted_2534 -           1020 261419at2759         -            533   7.5e-20   69.0  17.6   1   5      0.54   5.5e+02   -3.2   0.0    10    31    35    56    32    60 0.87 -
+augustus_predicted_2534 -           1020 261419at2759         -            533   7.5e-20   69.0  17.6   2   5      0.14   1.4e+02   -1.2   0.0    46    62   116   132    97   137 0.78 -
+augustus_predicted_2534 -           1020 261419at2759         -            533   7.5e-20   69.0  17.6   3   5   1.1e-07   0.00011   19.0   0.4   198   292   488   583   472   616 0.77 -
+augustus_predicted_2534 -           1020 261419at2759         -            533   7.5e-20   69.0  17.6   4   5   3.3e-16   3.4e-13   47.0   1.8   391   503   791   924   735   927 0.72 -
+augustus_predicted_2534 -           1020 261419at2759         -            533   7.5e-20   69.0  17.6   5   5     3e-05     0.031   10.9   0.1   501   533   974  1006   962  1006 0.87 -
+augustus_predicted_4239 -            923 261419at2759         -            533   3.2e-08   30.6   0.5   1   5    0.0011       1.1    5.7   0.0   100   158    55   114    41   125 0.84 -
+augustus_predicted_4239 -            923 261419at2759         -            533   3.2e-08   30.6   0.5   2   5     2e-06     0.002   14.8   0.0    79   158   239   320   232   324 0.85 -
+augustus_predicted_4239 -            923 261419at2759         -            533   3.2e-08   30.6   0.5   3   5     0.012        12    2.3   0.0   104   158   306   363   299   382 0.76 -
+augustus_predicted_4239 -            923 261419at2759         -            533   3.2e-08   30.6   0.5   4   5      0.13   1.4e+02   -1.2   0.0   102   167   389   461   381   470 0.73 -
+augustus_predicted_4239 -            923 261419at2759         -            533   3.2e-08   30.6   0.5   5   5    0.0054       5.5    3.4   0.2   139   171   472   507   428   515 0.71 -
+augustus_predicted_4281 -           1010 261419at2759         -            533     0.003   14.2   0.0   1   2    0.0022       2.3    4.7   0.1   101   170    44   116    32   123 0.83 -
+augustus_predicted_4281 -           1010 261419at2759         -            533     0.003   14.2   0.0   2   2   0.00018      0.19    8.3   0.0    86   141   110   165    99   175 0.81 -
+augustus_predicted_5156 -            426 261419at2759         -            533     0.011   12.4   0.0   1   2     6e-05     0.062    9.9   0.0   105   164    31    99    18   108 0.76 -
+augustus_predicted_5156 -            426 261419at2759         -            533     0.011   12.4   0.0   2   2     0.062        63   -0.1   0.1    68   119   183   233   154   312 0.59 -
+augustus_predicted_4515 -            574 261419at2759         -            533     0.027   11.1   0.0   1   1   4.7e-05     0.048   10.2   0.0   102   158    15    73     8    87 0.80 -
+#
+# Program:         hmmsearch
+# Version:         3.1b2 (February 2015)
+# Pipeline mode:   SEARCH
+# Query file:      ../../stats/eukaryota_odb10/hmms/261419at2759.hmm
+# Target file:     /home/centos/br/bin/Brownotate-1.2.0/runs/584a0dab-d3a4-4320-afed-b310965cc1e7/annotation/augustus_annotation.faa
+# Option settings: hmmsearch --domtblout /home/centos/br/bin/Brownotate-1.2.0/runs/584a0dab-d3a4-4320-afed-b310965cc1e7/busco_annotation/run_eukaryota_odb10/hmmer_output/initial_run_results/261419at2759.out --cpu 1 ../../stats/eukaryota_odb10/hmms/261419at2759.hmm /home/centos/br/bin/Brownotate-1.2.0/runs/584a0dab-d3a4-4320-afed-b310965cc1e7/annotation/augustus_annotation.faa 
+# Current dir:     /home/centos/br/bin/Brownotate-1.2.0/runs/584a0dab-d3a4-4320-afed-b310965cc1e7
+# Date:            Thu Aug 22 20:16:26 2024
+# [ok]

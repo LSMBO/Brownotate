@@ -1,4 +1,4 @@
-from . import uniprot
+from database_search.uniprot import UniprotTaxo
 
 def betterData(search_data_res):
     if 'genome' in search_data_res:
@@ -26,8 +26,8 @@ def betterEvidence(evidence, taxo):
     if evidence["ensembl"]:
         ensembl_evidence = evidence["ensembl"]
         ensembl_evidence_score = getEvidenceScore(ensembl_evidence, taxo)
-    uniprot_evidence = evidence["uniprot"]   
-    uniprot_evidence_score = getEvidenceScore(uniprot_evidence, taxo)
+    uniprot_proteome_evidence = evidence["uniprot_proteome"]   
+    uniprot_proteome_evidence_score = getEvidenceScore(uniprot_proteome_evidence, taxo)
     refseq_evidence = evidence["refseq"]
     refseq_evidence_score = getEvidenceScore(refseq_evidence, taxo)
     genbank_evidence = evidence["genbank"]
@@ -38,9 +38,9 @@ def betterEvidence(evidence, taxo):
     if ensembl_evidence_score > best_score:
         best_evidence = ensembl_evidence
         best_score = ensembl_evidence_score
-    if uniprot_evidence_score > best_score:
-        best_evidence = uniprot_evidence
-        best_score = uniprot_evidence_score
+    if uniprot_proteome_evidence_score > best_score:
+        best_evidence = uniprot_proteome_evidence
+        best_score = uniprot_proteome_evidence_score
     if refseq_evidence_score > best_score:
         best_evidence = refseq_evidence
         best_score = refseq_evidence_score
@@ -58,8 +58,8 @@ def getEvidenceScore(evidence, taxo):
     if (int(evidence_taxon_id) == taxo_id):
         return score
     
-    evidence_taxon = uniprot.taxo(evidence_taxon_id)
-    evidence_lineage = [item["taxonId"] for item in evidence_taxon["lineage"]]
+    evidence_taxon = UniprotTaxo(evidence_taxon_id)
+    evidence_lineage = [item["taxonId"] for item in evidence_taxon.taxonomy["lineage"]]
     taxo_lineage = [item["taxonId"] for item in taxo["lineage"]]
     initial_penalty = 1
     

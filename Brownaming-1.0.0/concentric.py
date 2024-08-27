@@ -35,8 +35,9 @@ def concentric(blast_reader_files, fasta_file, out_blast, out_stats, out_id_map,
 
     table.create_xlsx(output_tab, out_blast)
     score = create_fasta(fasta_file, output_tab, out_fasta, out_id_map)
+    score_percentage = (score[0]/score[1])*100
     with open(out_stats, "w") as f:
-        f.write(f" {str(score[0])} of the {str(score[1])} queries have been annotated ({str((score[0]/score[1])*100)}% )")
+        f.write(f" {str(score[0])} of the {str(score[1])} queries have been annotated ({round(score_percentage, 2)}% )")
 
 
 def create_fasta(originalFasta, listToConvert, name, out_id_map):

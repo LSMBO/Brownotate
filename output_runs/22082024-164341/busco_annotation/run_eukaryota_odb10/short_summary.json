@@ -1,0 +1,65 @@
+{
+    "parameters": {
+        "out_path": "/home/centos/br/bin/Brownotate-1.2.0/runs/584a0dab-d3a4-4320-afed-b310965cc1e7",
+        "cpu": "8",
+        "force": "False",
+        "restart": "False",
+        "quiet": "False",
+        "download_path": "/home/centos/br/bin/Brownotate-1.2.0/runs/584a0dab-d3a4-4320-afed-b310965cc1e7/busco_downloads",
+        "datasets_version": "odb10",
+        "offline": "True",
+        "download_base_url": "https://busco-data.ezlab.org/v5/data/",
+        "auto-lineage": "False",
+        "auto-lineage-prok": "False",
+        "auto-lineage-euk": "False",
+        "use_augustus": "False",
+        "use_miniprot": "False",
+        "use_metaeuk": "False",
+        "skip_bbtools": "False",
+        "batch_mode": "False",
+        "tar": "False",
+        "opt-out-run-stats": "False",
+        "in": "/home/centos/br/bin/Brownotate-1.2.0/runs/584a0dab-d3a4-4320-afed-b310965cc1e7/annotation/augustus_annotation.faa",
+        "out": "busco_annotation",
+        "mode": "proteins",
+        "lineage_dataset": "../../stats/eukaryota_odb10",
+        "main_out": "/home/centos/br/bin/Brownotate-1.2.0/runs/584a0dab-d3a4-4320-afed-b310965cc1e7/busco_annotation",
+        "lineage_results_dir": "run_eukaryota_odb10",
+        "domain": "eukaryota"
+    },
+    "lineage_dataset": {
+        "name": "eukaryota_odb10",
+        "creation_date": "2020-09-10",
+        "number_of_buscos": "255",
+        "number_of_species": "70"
+    },
+    "versions": {
+        "hmmsearch": 3.1,
+        "python": [
+            3,
+            9,
+            19,
+            "final",
+            0
+        ],
+        "busco": "5.7.1"
+    },
+    "results": {
+        "one_line_summary": "C:88.6%[S:87.8%,D:0.8%],F:2.7%,M:8.7%,n:255",
+        "Complete percentage": 88.6,
+        "Complete BUSCOs": 226,
+        "Single copy percentage": 87.8,
+        "Single copy BUSCOs": 224,
+        "Multi copy percentage": 0.8,
+        "Multi copy BUSCOs": 2,
+        "Fragmented percentage": 2.7,
+        "Fragmented BUSCOs": 7,
+        "Missing percentage": 8.7,
+        "Missing BUSCOs": 22,
+        "n_markers": 255,
+        "avg_identity": null,
+        "domain": "eukaryota",
+        "internal_stop_codon_count": 0,
+        "internal_stop_codon_percent": 0
+    }
+}

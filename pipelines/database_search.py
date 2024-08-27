@@ -75,14 +75,14 @@ def end_run():
             handler.close()
             LOGGER.removeHandler(handler)   
 
+        print(f"\nDatabase_search.json content :")
+        displayJSON(os.path.join(os.getcwd(), "Database_Search.json"))
+        
         copyWorkingDirectory()
         if not os.path.exists(os.path.join(STATE['output_fasta_filepath'], 'Database_search.json')):
             os.chdir("..")
             shutil.rmtree(STATE['run_id'])
-
-        
-        print(f"\nDatabase_search.json content :")
-        displayJSON(os.path.join(STATE['output_directory'], "Database_Search.json"))
+            
         exit()
         
 def run_database_search(state, database_search, logger, dbs_only=False, no_seq=False, no_genome=False, no_prots=False, search_similar_species=False):

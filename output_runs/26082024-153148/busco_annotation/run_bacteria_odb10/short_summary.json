@@ -1,0 +1,65 @@
+{
+    "parameters": {
+        "out_path": "/home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f",
+        "cpu": "8",
+        "force": "False",
+        "restart": "False",
+        "quiet": "False",
+        "download_path": "/home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f/busco_downloads",
+        "datasets_version": "odb10",
+        "offline": "True",
+        "download_base_url": "https://busco-data.ezlab.org/v5/data/",
+        "auto-lineage": "False",
+        "auto-lineage-prok": "False",
+        "auto-lineage-euk": "False",
+        "use_augustus": "False",
+        "use_miniprot": "False",
+        "use_metaeuk": "False",
+        "skip_bbtools": "False",
+        "batch_mode": "False",
+        "tar": "False",
+        "opt-out-run-stats": "False",
+        "in": "/home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f/annotation/prokka_annotation.faa",
+        "out": "busco_annotation",
+        "mode": "proteins",
+        "lineage_dataset": "../../stats/bacteria_odb10",
+        "main_out": "/home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f/busco_annotation",
+        "lineage_results_dir": "run_bacteria_odb10",
+        "domain": "prokaryota"
+    },
+    "lineage_dataset": {
+        "name": "bacteria_odb10",
+        "creation_date": "2020-03-06",
+        "number_of_buscos": "124",
+        "number_of_species": "4085"
+    },
+    "versions": {
+        "hmmsearch": 3.1,
+        "python": [
+            3,
+            9,
+            19,
+            "final",
+            0
+        ],
+        "busco": "5.7.1"
+    },
+    "results": {
+        "one_line_summary": "C:96.8%[S:95.2%,D:1.6%],F:3.2%,M:0.0%,n:124",
+        "Complete percentage": 96.8,
+        "Complete BUSCOs": 120,
+        "Single copy percentage": 95.2,
+        "Single copy BUSCOs": 118,
+        "Multi copy percentage": 1.6,
+        "Multi copy BUSCOs": 2,
+        "Fragmented percentage": 3.2,
+        "Fragmented BUSCOs": 4,
+        "Missing percentage": 0.0,
+        "Missing BUSCOs": 0,
+        "n_markers": 124,
+        "avg_identity": null,
+        "domain": "prokaryota",
+        "internal_stop_codon_count": 0,
+        "internal_stop_codon_percent": 0
+    }
+}

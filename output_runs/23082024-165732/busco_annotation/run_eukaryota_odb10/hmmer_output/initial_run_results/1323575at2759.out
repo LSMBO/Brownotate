@@ -1,0 +1,25 @@
+#                                                                               --- full sequence --- -------------- this domain -------------   hmm coord   ali coord   env coord
+# target name           accession   tlen query name           accession   qlen   E-value  score  bias   #  of  c-Evalue  i-Evalue  score  bias  from    to  from    to  from    to  acc description of target
+#   ------------------- ---------- ----- -------------------- ---------- ----- --------- ------ ----- --- --- --------- --------- ------ ----- ----- ----- ----- ----- ----- ----- ---- ---------------------
+augustus_predicted_5349 -            213 1323575at2759        -            114   1.6e-46  156.3   4.1   1   1   1.1e-48   1.2e-45  153.4   4.1     1   114    34   170    34   170 0.91 -
+augustus_predicted_241  -            242 1323575at2759        -            114     1e-11   44.1   2.4   1   2    0.0014       1.6    8.0   0.3     6    31    27    52    24    54 0.91 -
+augustus_predicted_241  -            242 1323575at2759        -            114     1e-11   44.1   2.4   2   2   3.5e-12     4e-09   35.7   0.1    31   113    72   168    67   169 0.80 -
+augustus_predicted_7043 -            366 1323575at2759        -            114   0.00013   21.2   0.0   1   3   0.00012      0.13   11.5   0.0    38    70    83   118    73   124 0.86 -
+augustus_predicted_7043 -            366 1323575at2759        -            114   0.00013   21.2   0.0   2   3       7.4   8.3e+03   -4.0   0.0     7    15   257   265   255   266 0.83 -
+augustus_predicted_7043 -            366 1323575at2759        -            114   0.00013   21.2   0.0   3   3     0.003       3.4    7.0   0.0    44    94   305   355   289   361 0.83 -
+augustus_predicted_6326 -            197 1323575at2759        -            114     0.005   16.1   0.0   1   1   7.8e-06    0.0087   15.3   0.0    52    98   114   165    96   178 0.71 -
+augustus_predicted_210  -            161 1323575at2759        -            114    0.0087   15.3   0.0   1   1   1.1e-05     0.012   14.8   0.0    43   113    80   154    52   155 0.76 -
+augustus_predicted_917  -            248 1323575at2759        -            114     0.011   15.0   0.0   1   2     0.003       3.3    7.0   0.0    42    68   145   171   138   192 0.78 -
+augustus_predicted_917  -            248 1323575at2759        -            114     0.011   15.0   0.0   2   2    0.0073       8.2    5.7   0.0    85   104   213   232   204   240 0.82 -
+augustus_predicted_6759 -            225 1323575at2759        -            114     0.038   13.3   0.0   1   1   5.4e-05     0.061   12.6   0.0    39    99   139   199   118   218 0.85 -
+augustus_predicted_7161 -            190 1323575at2759        -            114     0.066   12.5   0.4   1   1   0.00039      0.44    9.8   0.4    70   105   112   147    17   155 0.74 -
+#
+# Program:         hmmsearch
+# Version:         3.1b2 (February 2015)
+# Pipeline mode:   SEARCH
+# Query file:      ../../stats/eukaryota_odb10/hmms/1323575at2759.hmm
+# Target file:     /home/centos/br/bin/Brownotate-1.2.0/runs/b283acc0-5629-444b-ad7a-7147f201d246/annotation/augustus_annotation.faa
+# Option settings: hmmsearch --domtblout /home/centos/br/bin/Brownotate-1.2.0/runs/b283acc0-5629-444b-ad7a-7147f201d246/busco_annotation/run_eukaryota_odb10/hmmer_output/initial_run_results/1323575at2759.out --cpu 1 ../../stats/eukaryota_odb10/hmms/1323575at2759.hmm /home/centos/br/bin/Brownotate-1.2.0/runs/b283acc0-5629-444b-ad7a-7147f201d246/annotation/augustus_annotation.faa 
+# Current dir:     /home/centos/br/bin/Brownotate-1.2.0/runs/b283acc0-5629-444b-ad7a-7147f201d246
+# Date:            Sat Aug 24 02:31:57 2024
+# [ok]

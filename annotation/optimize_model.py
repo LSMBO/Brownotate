@@ -4,7 +4,7 @@ import re
 
 conda_prefix = os.environ["CONDA_PREFIX"]
 augustus_config_path = conda_prefix + "/config"
-scripts_path = conda_prefix + "/scripts"
+conda_bin_path = conda_prefix + "/bin"
 env = os.environ.copy()
 env["AUGUSTUS_CONFIG_PATH"] = augustus_config_path
 
@@ -12,11 +12,11 @@ def optimize_model(num_genes):
     genes_file = "annotation/genes.gb"
     run_id = os.path.basename(os.getcwd())
     if num_genes > 5000:
-        command = f"{scripts_path}/randomSplit.pl {genes_file} 5000"
+        command = f"{conda_bin_path}/randomSplit.pl {genes_file} 5000"
         print(command)
         subprocess.run(command, shell=True, check=True, env=env)
         genes_file = "annotation/genes.gb.train"
-    command = f"{scripts_path}/optimize_augustus.pl --species={run_id} --cpus=12 --kfold=8 --onlytrain {genes_file}"
+    command = f"{conda_bin_path}/optimize_augustus.pl --species={run_id} --cpus=12 --kfold=8 --onlytrain {genes_file}"
     print(command)
     subprocess.run(command, shell=True, check=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     command = f"etraining --species={run_id} {genes_file} &> annotation/etrain.out"

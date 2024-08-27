@@ -1,0 +1,21 @@
+#                                                                            --- full sequence --- -------------- this domain -------------   hmm coord   ali coord   env coord
+# target name        accession   tlen query name           accession   qlen   E-value  score  bias   #  of  c-Evalue  i-Evalue  score  bias  from    to  from    to  from    to  acc description of target
+#------------------- ---------- ----- -------------------- ---------- ----- --------- ------ ----- --- --- --------- --------- ------ ----- ----- ----- ----- ----- ----- ----- ---- ---------------------
+DMGIDEJL_02300       -           1302 26038at2             -            439   7.1e-77  257.8  14.7   1   8   5.6e-15   4.1e-11   41.1   0.0    13    48   201   236   191   238 0.88 unannotated protein
+DMGIDEJL_02300       -           1302 26038at2             -            439   7.1e-77  257.8  14.7   2   8   2.3e-21   1.7e-17   62.1   0.6    57   100   294   339   286   349 0.87 unannotated protein
+DMGIDEJL_02300       -           1302 26038at2             -            439   7.1e-77  257.8  14.7   3   8     0.026   1.9e+02   -0.7   0.0   105   128   369   393   364   396 0.86 unannotated protein
+DMGIDEJL_02300       -           1302 26038at2             -            439   7.1e-77  257.8  14.7   4   8   1.3e-29   9.4e-26   89.3   0.1   142   257   437   590   406   594 0.77 unannotated protein
+DMGIDEJL_02300       -           1302 26038at2             -            439   7.1e-77  257.8  14.7   5   8     0.021   1.5e+02   -0.4   0.0   251   276   630   655   614   669 0.85 unannotated protein
+DMGIDEJL_02300       -           1302 26038at2             -            439   7.1e-77  257.8  14.7   6   8   3.6e-10   2.7e-06   25.2   1.1   282   328   694   740   682   745 0.86 unannotated protein
+DMGIDEJL_02300       -           1302 26038at2             -            439   7.1e-77  257.8  14.7   7   8   5.8e-08   0.00042   18.0   0.0   313   367   759   825   743   857 0.74 unannotated protein
+DMGIDEJL_02300       -           1302 26038at2             -            439   7.1e-77  257.8  14.7   8   8   3.1e-08   0.00023   18.9   0.0   388   433   884   940   861   945 0.77 unannotated protein
+#
+# Program:         hmmsearch
+# Version:         3.1b2 (February 2015)
+# Pipeline mode:   SEARCH
+# Query file:      ../../stats/bacteria_odb10/hmms/26038at2.hmm
+# Target file:     /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f/annotation/prokka_annotation.faa
+# Option settings: hmmsearch --domtblout /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f/busco_annotation/run_bacteria_odb10/hmmer_output/26038at2.out --cpu 1 ../../stats/bacteria_odb10/hmms/26038at2.hmm /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f/annotation/prokka_annotation.faa 
+# Current dir:     /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f
+# Date:            Mon Aug 26 17:08:52 2024
+# [ok]

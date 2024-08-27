@@ -1,0 +1,18 @@
+#                                                                            --- full sequence --- -------------- this domain -------------   hmm coord   ali coord   env coord
+# target name        accession   tlen query name           accession   qlen   E-value  score  bias   #  of  c-Evalue  i-Evalue  score  bias  from    to  from    to  from    to  acc description of target
+#------------------- ---------- ----- -------------------- ---------- ----- --------- ------ ----- --- --- --------- --------- ------ ----- ----- ----- ----- ----- ----- ----- ---- ---------------------
+DMGIDEJL_05675       -            898 91428at2             -            555  2.4e-158  526.6  27.6   1   5   6.5e-56   4.7e-52  175.7   0.0     2   146     6   190     5   195 0.83 unannotated protein
+DMGIDEJL_05675       -            898 91428at2             -            555  2.4e-158  526.6  27.6   2   5   4.1e-55     3e-51  173.1   0.0   144   313   208   429   202   453 0.76 unannotated protein
+DMGIDEJL_05675       -            898 91428at2             -            555  2.4e-158  526.6  27.6   3   5   1.1e-09   7.9e-06   23.1   0.1   323   355   495   527   457   550 0.85 unannotated protein
+DMGIDEJL_05675       -            898 91428at2             -            555  2.4e-158  526.6  27.6   4   5   2.7e-49     2e-45  153.8   7.2   360   541   582   786   565   802 0.84 unannotated protein
+DMGIDEJL_05675       -            898 91428at2             -            555  2.4e-158  526.6  27.6   5   5   0.00093       6.8    3.5   3.4   533   554   849   876   826   877 0.67 unannotated protein
+#
+# Program:         hmmsearch
+# Version:         3.1b2 (February 2015)
+# Pipeline mode:   SEARCH
+# Query file:      ../../stats/bacteria_odb10/hmms/91428at2.hmm
+# Target file:     /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f/annotation/prokka_annotation.faa
+# Option settings: hmmsearch --domtblout /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f/busco_annotation/run_bacteria_odb10/hmmer_output/91428at2.out --cpu 1 ../../stats/bacteria_odb10/hmms/91428at2.hmm /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f/annotation/prokka_annotation.faa 
+# Current dir:     /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f
+# Date:            Mon Aug 26 17:08:53 2024
+# [ok]

@@ -1,0 +1,76 @@
+#                                                                            --- full sequence --- -------------- this domain -------------   hmm coord   ali coord   env coord
+# target name        accession   tlen query name           accession   qlen   E-value  score  bias   #  of  c-Evalue  i-Evalue  score  bias  from    to  from    to  from    to  acc description of target
+#------------------- ---------- ----- -------------------- ---------- ----- --------- ------ ----- --- --- --------- --------- ------ ----- ----- ----- ----- ----- ----- ----- ---- ---------------------
+DMGIDEJL_04262       -            161 1827295at2           -             74   8.7e-16   56.3   0.2   1   1   1.5e-17   2.6e-15   54.8   0.2     2    63    20    99    19   118 0.83 unannotated protein
+DMGIDEJL_04726       -           1135 1827295at2           -             74   4.2e-05   22.1   0.2   1   2    0.0012      0.21   10.2   0.0     8    40   270   300   261   326 0.75 unannotated protein
+DMGIDEJL_04726       -           1135 1827295at2           -             74   4.2e-05   22.1   0.2   2   2    0.0035       0.6    8.8   0.1     9    32   549   572   534   576 0.84 unannotated protein
+DMGIDEJL_02932       -            298 1827295at2           -             74   8.8e-05   21.1   0.1   1   2   1.2e-05    0.0021   16.7   0.0     8    34    27    56    19    61 0.82 unannotated protein
+DMGIDEJL_02932       -            298 1827295at2           -             74   8.8e-05   21.1   0.1   2   2      0.79   1.3e+02    1.3   0.0    14    28    92   106    79   114 0.86 unannotated protein
+DMGIDEJL_05900       -            765 1827295at2           -             74   0.00022   19.8   0.0   1   2      0.12        21    3.9   0.0    14    32   223   241   209   247 0.85 unannotated protein
+DMGIDEJL_05900       -            765 1827295at2           -             74   0.00022   19.8   0.0   2   2   0.00017     0.029   13.0   0.0    11    33   501   523   486   527 0.88 unannotated protein
+DMGIDEJL_02724       -            711 1827295at2           -             74   0.00034   19.2   0.0   1   2    0.0036      0.61    8.8   0.0     8    33   218   245   210   261 0.81 unannotated protein
+DMGIDEJL_02724       -            711 1827295at2           -             74   0.00034   19.2   0.0   2   2     0.009       1.5    7.5   0.0     9    32   494   517   483   523 0.78 unannotated protein
+DMGIDEJL_02542       -            245 1827295at2           -             74   0.00055   18.5   0.0   1   1   7.3e-06    0.0012   17.4   0.0     9    33    42    66    29    70 0.83 unannotated protein
+DMGIDEJL_04727       -           1127 1827295at2           -             74   0.00063   18.3   1.0   1   2    0.0091       1.6    7.5   0.0     8    32   252   278   240   282 0.80 unannotated protein
+DMGIDEJL_04727       -           1127 1827295at2           -             74   0.00063   18.3   1.0   2   2    0.0055      0.93    8.2   0.1     9    32   535   558   520   563 0.82 unannotated protein
+DMGIDEJL_05637       -            314 1827295at2           -             74   0.00071   18.2   0.0   1   1     9e-06    0.0015   17.1   0.0    10    32    47    69    31    73 0.82 unannotated protein
+DMGIDEJL_06385       -            415 1827295at2           -             74    0.0011   17.6   0.1   1   1   1.3e-05    0.0022   16.6   0.1     8    31     9    33     2    40 0.82 unannotated protein
+DMGIDEJL_03263       -            204 1827295at2           -             74    0.0011   17.6   0.0   1   1   1.2e-05    0.0021   16.7   0.0     9    40     5    33     1    52 0.82 unannotated protein
+DMGIDEJL_03906       -            500 1827295at2           -             74    0.0011   17.5   0.0   1   2     0.085        14    4.4   0.1    13    32    34    53    23    57 0.86 unannotated protein
+DMGIDEJL_03906       -            500 1827295at2           -             74    0.0011   17.5   0.0   2   2    0.0015      0.26   10.0   0.0    11    32   343   364   333   368 0.86 unannotated protein
+DMGIDEJL_00688       -            491 1827295at2           -             74    0.0013   17.3   2.4   1   3    0.0018       0.3    9.7   0.1     9    32    33    56    22    61 0.84 unannotated protein
+DMGIDEJL_00688       -            491 1827295at2           -             74    0.0013   17.3   2.4   2   3      0.51        87    1.9   0.0    16    44   154   182   135   185 0.86 unannotated protein
+DMGIDEJL_00688       -            491 1827295at2           -             74    0.0013   17.3   2.4   3   3      0.15        26    3.5   0.2     9    29   267   287   257   294 0.75 unannotated protein
+DMGIDEJL_01457       -            940 1827295at2           -             74    0.0018   16.9   0.2   1   2     0.026       4.5    6.0   0.0    11    33    50    73    35    79 0.80 unannotated protein
+DMGIDEJL_01457       -            940 1827295at2           -             74    0.0018   16.9   0.2   2   2    0.0052      0.88    8.3   0.0     9    32   316   339   296   343 0.84 unannotated protein
+DMGIDEJL_04096       -            839 1827295at2           -             74    0.0044   15.6   0.0   1   2     0.034       5.7    5.6   0.0    12    32   299   319   286   324 0.86 unannotated protein
+DMGIDEJL_04096       -            839 1827295at2           -             74    0.0044   15.6   0.0   2   2     0.013       2.2    7.0   0.0    11    32   573   594   559   600 0.82 unannotated protein
+DMGIDEJL_04734       -            884 1827295at2           -             74    0.0051   15.4   0.1   1   2     0.022       3.8    6.2   0.0    12    32   273   293   259   300 0.85 unannotated protein
+DMGIDEJL_04734       -            884 1827295at2           -             74    0.0051   15.4   0.1   2   2     0.022       3.8    6.2   0.0    11    32   610   631   595   636 0.84 unannotated protein
+DMGIDEJL_04728       -            764 1827295at2           -             74    0.0065   15.1   1.4   1   3    0.0096       1.6    7.4   0.0     8    33   229   256   218   267 0.76 unannotated protein
+DMGIDEJL_04728       -            764 1827295at2           -             74    0.0065   15.1   1.4   2   3     0.067        11    4.7   0.0    11    36   506   531   491   534 0.84 unannotated protein
+DMGIDEJL_04728       -            764 1827295at2           -             74    0.0065   15.1   1.4   3   3       3.6   6.2e+02   -0.9   0.0     8    21   606   624   599   634 0.71 unannotated protein
+DMGIDEJL_01560       -           1161 1827295at2           -             74    0.0066   15.1   0.2   1   2    0.0066       1.1    7.9   0.0     9    29    63    83    47    90 0.82 unannotated protein
+DMGIDEJL_01560       -           1161 1827295at2           -             74    0.0066   15.1   0.2   2   2     0.085        14    4.4   0.1    13    32   772   791   760   796 0.87 unannotated protein
+DMGIDEJL_04495       -            532 1827295at2           -             74    0.0066   15.1   0.0   1   2     0.018       3.1    6.5   0.0    12    29    31    48    19    55 0.87 unannotated protein
+DMGIDEJL_04495       -            532 1827295at2           -             74    0.0066   15.1   0.0   2   2     0.031       5.3    5.8   0.0     9    33   343   367   330   369 0.83 unannotated protein
+DMGIDEJL_02171       -            184 1827295at2           -             74    0.0073   14.9   0.0   1   1   9.5e-05     0.016   13.8   0.0     9    31     5    27     1    35 0.87 unannotated protein
+DMGIDEJL_03974       -            425 1827295at2           -             74    0.0092   14.6   0.0   1   1   0.00013     0.022   13.4   0.0     8    33   119   144   111   151 0.83 unannotated protein
+DMGIDEJL_04611       -            209 1827295at2           -             74    0.0093   14.6   0.1   1   1   0.00016     0.026   13.1   0.0     9    36    11    38     2    44 0.83 unannotated protein
+DMGIDEJL_04990       -            874 1827295at2           -             74    0.0094   14.6   0.0   1   2     0.022       3.7    6.2   0.0    12    32   202   223   190   228 0.84 unannotated protein
+DMGIDEJL_04990       -            874 1827295at2           -             74    0.0094   14.6   0.0   2   2     0.049       8.3    5.1   0.0    11    32   603   624   588   629 0.86 unannotated protein
+DMGIDEJL_03189       -            219 1827295at2           -             74      0.01   14.4   0.1   1   1   0.00012      0.02   13.5   0.1     9    33    36    60    22    67 0.81 unannotated protein
+DMGIDEJL_05620       -            230 1827295at2           -             74     0.012   14.3   0.0   1   1   0.00013     0.022   13.4   0.0     8    28    27    48    19    55 0.81 unannotated protein
+DMGIDEJL_06749       -            565 1827295at2           -             74     0.018   13.6   0.0   1   1   0.00033     0.055   12.1   0.0     9    44    50    87    34    91 0.77 unannotated protein
+DMGIDEJL_04717       -            858 1827295at2           -             74     0.019   13.6   0.0   1   2     0.029         5    5.8   0.0    12    31   205   224   191   231 0.83 unannotated protein
+DMGIDEJL_04717       -            858 1827295at2           -             74     0.019   13.6   0.0   2   2     0.058       9.9    4.9   0.0     9    32   591   614   573   618 0.84 unannotated protein
+DMGIDEJL_01973       -            427 1827295at2           -             74     0.019   13.6   0.0   1   1   0.00023      0.04   12.6   0.0     6    33   111   138   102   145 0.82 unannotated protein
+DMGIDEJL_02693       -            356 1827295at2           -             74     0.021   13.4   0.0   1   1   0.00024     0.041   12.5   0.0     9    33    60    84    45    98 0.83 unannotated protein
+DMGIDEJL_07190       -            282 1827295at2           -             74     0.021   13.4   0.0   1   1   0.00025     0.043   12.5   0.0    10    35    35    60    20    73 0.84 unannotated protein
+DMGIDEJL_03653       -            308 1827295at2           -             74     0.021   13.4   0.0   1   1   0.00025     0.042   12.5   0.0     9    52    10    51     2    69 0.81 unannotated protein
+DMGIDEJL_01975       -            817 1827295at2           -             74     0.025   13.2   0.0   1   1   0.00041      0.07   11.8   0.0     8    33   358   386   350   390 0.81 unannotated protein
+DMGIDEJL_00598       -            162 1827295at2           -             74     0.025   13.2   0.2   1   1   0.00027     0.047   12.3   0.2    10    34     2    26     1    29 0.91 unannotated protein
+DMGIDEJL_05169       -            601 1827295at2           -             74     0.029   13.0   0.0   1   1   0.00063      0.11   11.2   0.0     9    27   372   390   360   399 0.82 unannotated protein
+DMGIDEJL_02012       -            214 1827295at2           -             74     0.039   12.6   0.0   1   1   0.00061       0.1   11.2   0.0    10    34     5    29     2    32 0.88 unannotated protein
+DMGIDEJL_04022       -            307 1827295at2           -             74     0.042   12.5   0.1   1   1   0.00051     0.087   11.5   0.1    11    29    42    60    26    66 0.83 unannotated protein
+DMGIDEJL_00604       -            540 1827295at2           -             74     0.048   12.3   0.6   1   2    0.0034      0.58    8.8   0.1     6    29    24    48    19    52 0.78 unannotated protein
+DMGIDEJL_00604       -            540 1827295at2           -             74     0.048   12.3   0.6   2   2       1.1   1.9e+02    0.7   0.1    12    27   354   369   342   375 0.80 unannotated protein
+DMGIDEJL_00538       -            310 1827295at2           -             74     0.055   12.1   0.1   1   1   0.00069      0.12   11.1   0.1     3    29    23    52    20    61 0.83 unannotated protein
+DMGIDEJL_03340       -            221 1827295at2           -             74     0.061   12.0   0.1   1   1   0.00087      0.15   10.7   0.1     7    33    10    39     3    45 0.80 unannotated protein
+DMGIDEJL_03415       -            185 1827295at2           -             74     0.073   11.7   0.1   1   1   0.00077      0.13   10.9   0.1    10    33     8    31     1    36 0.85 unannotated protein
+DMGIDEJL_01904       -            402 1827295at2           -             74     0.073   11.7   0.0   1   1    0.0013      0.22   10.2   0.0     9    33    39    63    25    70 0.79 unannotated protein
+DMGIDEJL_07211       -            374 1827295at2           -             74     0.087   11.5   1.6   1   2     0.013       2.2    7.0   0.3     8    31    12    36     4    41 0.79 unannotated protein
+DMGIDEJL_07211       -            374 1827295at2           -             74     0.087   11.5   1.6   2   2      0.26        44    2.8   0.0    12    33   206   227   197   251 0.89 unannotated protein
+DMGIDEJL_03271       -            657 1827295at2           -             74      0.11   11.2   0.8   1   2       1.1   1.8e+02    0.8   0.1     6    29    26    50    21    60 0.78 unannotated protein
+DMGIDEJL_03271       -            657 1827295at2           -             74      0.11   11.2   0.8   2   2    0.0073       1.2    7.8   0.1     9    33   353   377   338   400 0.86 unannotated protein
+DMGIDEJL_05238       -            578 1827295at2           -             74      0.13   10.9   0.8   1   1    0.0021      0.35    9.5   0.3     6    35    20    49    14    53 0.82 unannotated protein
+#
+# Program:         hmmsearch
+# Version:         3.1b2 (February 2015)
+# Pipeline mode:   SEARCH
+# Query file:      ../../stats/bacteria_odb10/hmms/1827295at2.hmm
+# Target file:     /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f/annotation/prokka_annotation.faa
+# Option settings: hmmsearch --domtblout /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f/busco_annotation/run_bacteria_odb10/hmmer_output/1827295at2.out --cpu 1 ../../stats/bacteria_odb10/hmms/1827295at2.hmm /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f/annotation/prokka_annotation.faa 
+# Current dir:     /home/centos/br/bin/Brownotate-1.2.0/runs/d9e29a31-2577-43ee-9a7d-4c26448b2c8f
+# Date:            Mon Aug 26 17:08:52 2024
+# [ok]
