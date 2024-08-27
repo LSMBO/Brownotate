@@ -30,6 +30,7 @@ test/
 Brownaming-1.0.0/test/
 runs/*
 output_runs/*
+uploads/*
 Brownaming-1.0.0/runs/*
 stats/eukaryota_odb10/refseq_db.faa
 
