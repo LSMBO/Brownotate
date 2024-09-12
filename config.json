@@ -1,7 +1,8 @@
 {
-    "email": "browna@unistra.fr",
-    "MONGO_URI": "mongodb://localhost:27017/brownotate-db",
-    "BROWNOTATE_PATH": "/home/centos/br/bin/Brownotate-1.2.0",
-    "BROWNOTATE_ENV_PATH": "/home/centos/anaconda3/envs/br"
+    "email": "",
+    "MONGO_URI": "",
+    "BROWNOTATE_PATH": "",
+    "BROWNOTATE_ENV_PATH": "",
+    "SRA_DOWNLOAD_ENV_PATH": ""
   }
   

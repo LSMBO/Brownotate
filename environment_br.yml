@@ -1,0 +1,23 @@
+name: br
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.9
+  - xmltodict=0.13.0
+  - augustus=3.5
+  - busco=5.7.1
+  - prokka=1.14.6
+  - blat=35
+  - fastp=0.23.4
+  - bowtie2=2.5.4
+  - megahit=1.2.9
+  - pip
+  - pip:
+    - xlsxwriter==3.2.0
+    - flask==3.0.3
+    - flask_socketio==5.3.6
+    - flask_cors==4.0.1
+    - pymongo==4.8.0
+    - bcrypt==4.2.0
+    - gunicorn==23.0.0

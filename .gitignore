@@ -32,7 +32,7 @@ runs/*
 output_runs/*
 uploads/*
 Brownaming-1.0.0/runs/*
-stats/eukaryota_odb10/refseq_db.faa
+stats/transrate.py
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

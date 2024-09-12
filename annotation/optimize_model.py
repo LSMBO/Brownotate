@@ -1,34 +1,45 @@
 import subprocess
 import os
 import re
+import json
 
-conda_prefix = os.environ["CONDA_PREFIX"]
-augustus_config_path = conda_prefix + "/config"
-conda_bin_path = conda_prefix + "/bin"
+base_dir = os.path.dirname(os.path.abspath(__file__))
+config_path = os.path.join(base_dir, '..', 'config.json')
+with open(config_path) as config_file:
+    config = json.load(config_file)
+
+augustus_config_path = f"{config['BROWNOTATE_ENV_PATH']}/config"
+conda_bin_path = f"{config['BROWNOTATE_ENV_PATH']}/bin"
+
 env = os.environ.copy()
 env["AUGUSTUS_CONFIG_PATH"] = augustus_config_path
 
 def optimize_model(num_genes):
     genes_file = "annotation/genes.gb"
     run_id = os.path.basename(os.getcwd())
+    
     if num_genes > 5000:
-        command = f"{conda_bin_path}/randomSplit.pl {genes_file} 5000"
+        command = f"perl {conda_bin_path}/randomSplit.pl {genes_file} 5000"
         print(command)
         subprocess.run(command, shell=True, check=True, env=env)
         genes_file = "annotation/genes.gb.train"
-    command = f"{conda_bin_path}/optimize_augustus.pl --species={run_id} --cpus=12 --kfold=8 --onlytrain {genes_file}"
+        
+    command = f"perl {conda_bin_path}/optimize_augustus.pl --species={run_id} --cpus=12 --kfold=8 --onlytrain {genes_file}"
     print(command)
     subprocess.run(command, shell=True, check=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     command = f"etraining --species={run_id} {genes_file} &> annotation/etrain.out"
-    try:
-        print(command)
-        subprocess.run(command, shell=True, check=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except subprocess.CalledProcessError as e:
-        print(f"Error: Exit code not null : {e.returncode}")
-        print(f"Standard output : {e.stdout.decode()}")
-        print(f"Error output : {e.stderr.decode()}")
-        exit()
-    tag, taa, tga = get_stop_proba("annotation/etrain.out")
+    
+    
+    etrain_path = "annotation/etrain.out"
+    etrain_path_stderr = "annotation/etrain.err"
+    command = f"etraining --species={run_id} {genes_file}"
+    print(command)
+
+    with open(etrain_path, 'w') as stdout:
+        with open(etrain_path_stderr, 'w') as stderr:
+            subprocess.run(command, shell=True, check=True, env=env, stdout=stdout, stderr=stderr)
+
+    tag, taa, tga = get_stop_proba(etrain_path)
     cfg_parameter_file = augustus_config_path + "/species/" + run_id + "/" + run_id + "_parameters.cfg"
     change_cfg_stop_prob(cfg_parameter_file, tag, taa, tga)
     clean()

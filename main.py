@@ -43,7 +43,6 @@ def copyWorkingDirectory():
         else:
             shutil.copy2(source_item, destination_item)
             
-# Define the argparse parser and add all the possible input arguments
 parser = argparse.ArgumentParser(description='Brownotate: Automatic genome annotation and protein database creation')
 
 parser.add_argument('-s', '--species', help='Name of the species')
@@ -56,7 +55,8 @@ parser.add_argument('--no-genome', action='store_true', help='Used with dbs_only
 parser.add_argument('--no-prots', action='store_true', help='Used with dbs_only if you do not want to consider the protein data')
 
 # Genenal
-parser.add_argument('--resume', help='Number of the run to resume if it was interrupted')
+parser.add_argument('--run-id', help="Identifier of the run")
+parser.add_argument('--resume', help='Identifier of the run to resume if it was interrupted')
 parser.add_argument('-od', '--output-dir', default=os.getcwd(), help='Path to the output directory')
 parser.add_argument("-c", "--cpus", type=int, default=int(os.cpu_count()/2), help="Number of CPUs to use")
 
@@ -115,14 +115,6 @@ if args.resume:
     args = argparse.Namespace(**param)
     args.resume = True
     
-    # Warning if any other arguments has been used
-    for arg in ['species', 'dbs_only', 'no_seq', 'no_genome', 'no_prots', 'output_dir', 'cpus', 'auto', 'dna_sra', 'dna_file', 'sra_bl', 'illumina_only', 
-                'skip_fastp', 'skip_bowtie2', 'skip_filtering', 'genome', 'genome_url', 'evidence', 'evidence_url', 'remove_included_sequences', 'skip_remove_redundancy', 
-                'skip_busco_assembly', 'skip_busco_annotation', 'skip_busco', 'skip_brownaming', 'brownaming_maxrank', 'brownaming_maxtaxo',
-                'brownaming_exclude', 'brownaming_db']:
-        if getattr(args, arg):
-            warnings.warn("All other parameters will be ignored because --resume is activated. Resume will use the same parameters as the specified run.", UserWarning)
-
 # --species
 if not args.species and not args.resume:
     raise ValueError("\nThe parameter --species is mandatory, except if you put --resume.")
@@ -189,13 +181,13 @@ if args.illumina_only:
     
 # --genome
 if args.genome:
-    for arg in ['skip_fastp', 'skip_bowtie2', 'skip_filtering', 'skip_busco_assembly', 'genome_url']:
+    for arg in ['skip_fastp', 'skip_bowtie2', 'skip_filtering', 'genome_url']:
         if getattr(args, arg):
             raise ValueError(f"\nThe parameters --genome and --{arg.replace('_', '-')} cannot be used together.")
         
 # --genome-url
 if args.genome_url:
-    for arg in ['skip_fastp', 'skip_bowtie2', 'skip_filtering', 'skip_busco_assembly', 'genome']:
+    for arg in ['skip_fastp', 'skip_bowtie2', 'skip_filtering', 'genome']:
         if getattr(args, arg):
             raise ValueError(f"\nThe parameters --genome_url and --{arg.replace('_', '-')} cannot be used together.")
 
@@ -248,6 +240,7 @@ if args.genome:
 
 input_evidence_file = ""
 if args.evidence:
+    print(args.evidence)
     if not os.path.exists(args.evidence):
         raise FileNotFoundError(f'File {f} not found')
     input_evidence_file = os.path.abspath(args.evidence)
@@ -301,23 +294,28 @@ if not os.path.isdir(OUTPUT_DIRECTORY):
         os.makedirs(OUTPUT_DIRECTORY)
     else:
         raise FileNotFoundError(f"{OUTPUT_DIRECTORY} is not a valid directory")
-        
+
+# Create taxo.json with taxonomy data
+taxo_uniprot = {}
+try:
+    taxo_uniprot = database_search.UniprotTaxo(args.species)
+except ValueError as e:
+    raise ValueError(f"\nTaxonomy data not found: {e}")
+TAXON_ID = taxo_uniprot.get_tax_id()
+SCIENTIFIC_NAME = taxo_uniprot.get_scientific_name()
+  
 if args.resume:    
     WORKING_DIR = os.path.join(SCRIPT_DIR, "runs", RUN_ID)
     os.chdir(WORKING_DIR)
-    
-    taxo_uniprot = {}
-    with open("taxo.json", 'r') as taxo_file:
-        taxo_uniprot = json.load(taxo_file)
-    TAXON_ID = taxo_uniprot.get("taxonId")
-    SCIENTIFIC_NAME = taxo_uniprot.get("scientificName")
     STATE = {}
     with open("state.json", 'r') as state_file:
         STATE = json.load(state_file)
 
 else:
-    # Generate a unique ID for this run
-    RUN_ID = str(uuid.uuid4())
+    if args.run_id:
+        RUN_ID = args.run_id
+    else:
+        RUN_ID = str(uuid.uuid4())
 
     # Create a directory with the name of the run ID 
     WORKING_DIR = os.path.join(SCRIPT_DIR, "runs", RUN_ID)
@@ -326,17 +324,9 @@ else:
     
     # Add the parameters in this working directory in param.json
     makeJson("param.json", vars(args))
+    makeJson(f"taxo.json", taxo_uniprot.get_taxonomy())   
 
-    # Create taxo.json with taxonomy data
-    try:
-        taxo_uniprot = database_search.UniprotTaxo(args.species)
-    except ValueError as e:
-        raise ValueError(f"\nTaxonomy data not found: {e}")
-    TAXON_ID = taxo_uniprot.get_tax_id()
-    SCIENTIFIC_NAME = taxo_uniprot.get_scientific_name()
 
-    makeJson(f"taxo.json", taxo_uniprot.get_taxonomy())    
-        
 # Path of the output directory
 OUTPUT_FASTA_FILENAME = f"{SCIENTIFIC_NAME.replace(' ', '_')}_Brownotate.fasta"
 OUTPUT_FASTA_FILEPATH = os.path.join(OUTPUT_DIRECTORY, OUTPUT_FASTA_FILENAME)
@@ -507,14 +497,14 @@ if "dnaseq_files" in STATE:
         makeJson("state.json", STATE)
         logger.info(f"The genome has been successfully assembled.")    
 
-    # Busco completeness evaluation
-    if not args.skip_busco_assembly and not args.skip_busco:
-        logger.info(f"Evaluate the completness of the genome using Busco.")
-        if os.path.exists("Busco_genome.json"):
-            logger.info(f"The evaluation has already been completed.")
-        else:
-            pipelines.run_busco(STATE, stats, mode="genome")
-            logger.info(f"The busco evaluation has successfully been computed.")
+# Busco completeness evaluation
+if not args.skip_busco_assembly and not args.skip_busco:
+    logger.info(f"Evaluate the completeness of the genome using Busco.")
+    if os.path.exists("Busco_genome.json"):
+        logger.info(f"The evaluation has already been completed.")
+    else:
+        pipelines.run_busco(STATE, stats, mode="genome")
+        logger.info(f"The busco evaluation has successfully been computed.")
 
 # Annotation with augustus for eukaryots and with prokka for prokaryots
 annotation_tool = "augustus"
@@ -613,8 +603,9 @@ if annotation_tool=="augustus":
             makeJson("state.json", STATE)
             logger.info(f"The gene prediction model has been successfully retrained.")
         if num_genes < 400:
-            print("Error : Number of genes and rawgenes is too low, the annotation cannot continue. Please try with a better genome or with better protein evidences.")
+            print(f"Error : Number of genes and rawgenes is too low in the run {OUTPUT_DIRECTORY}, the annotation cannot continue. Please try with a better genome or with better protein evidences.")
             logger.info(f"Even with flexible scipio, the gene prediction model cannot be trained with such a low number of genes. Brownotate is interruped.")
+            copyWorkingDirectory()
             exit()
     
     # Optimizes the model    
@@ -657,7 +648,7 @@ if not args.skip_brownaming:
 
 # Busco completeness evaluation
 if not args.skip_busco_annotation and not args.skip_busco:
-    logger.info(f"Evaluate the completness of the annotation using Busco.")
+    logger.info(f"Evaluate the completeness of the annotation using Busco.")
     if os.path.exists("Busco_annotation.json"):
         logger.info(f"The evaluation has already been completed.")
     else:

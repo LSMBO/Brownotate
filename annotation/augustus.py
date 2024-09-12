@@ -3,9 +3,16 @@ import os
 import multiprocessing
 import shutil
 from Bio import SeqIO
+import json
+
+base_dir = os.path.dirname(os.path.abspath(__file__))
+config_path = os.path.join(base_dir, '..', 'config.json')
+with open(config_path) as config_file:
+    config = json.load(config_file)
+
+conda_bin_path = f"{config['BROWNOTATE_ENV_PATH']}/bin"
 
 work_dir = f"annotation/augustus_work_dir"
-conda_bin_path = os.environ["CONDA_PREFIX"] + "/bin"
 
 def augustus(genome_files):
     run_id = os.path.basename(os.getcwd())
@@ -34,7 +41,7 @@ def run_augustus(genome_file, output_name, run_id):
         command = f"augustus --species={run_id} ../{genome_file} > {output_gff_file}"
         print(command)
         subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        command = f"{conda_bin_path}/getAnnoFasta.pl {output_name}.gff"
+        command = f"perl {conda_bin_path}/getAnnoFasta.pl {output_name}.gff"
         print(command)
         subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return output_aa_file

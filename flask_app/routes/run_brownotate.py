@@ -18,19 +18,26 @@ def run_brownotate():
 	run_id = request.json.get('run_id')
 	if not user or not run_id:
 		return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
-	print(f"cherche le run {run_id}")
+
 	results = find_one('runs', {'parameters.id': int(run_id)})
-	print(f"results = {results}")
+
 	if not results['data']:
 		return jsonify({'status': 'error', 'message': 'Run not found in the MongoDB database'}), 400
 
 	parameters = results['data']['parameters']
+	current_datetime = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
 	query = {'parameters.id': parameters['id']}
-	update = {'$set': {'parameters': parameters, 'status': 'running'}}
+	update = {
+		'$set': {
+			'parameters': parameters, 
+			'status': 'running',
+			'working_dir_id': current_datetime
+		}
+	}
 	update_one('runs', query, update)
 	socketio.emit('runs_updated', {'run_id': run_id, 'status': 'running'})
  
-	current_datetime = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
+	
 	command = build_brownotate_command(parameters, current_datetime)
 	stdout, stderr = run_command(command, run_id)
  

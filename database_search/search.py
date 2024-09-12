@@ -1,6 +1,6 @@
-from .sra import *
-from .genome import *
-from .proteins import *
+from .sra import getBetterSra
+from .genome import getGenomes
+from .proteins import getProteins
 import time
 
 def displayTime(elapsed_time):
@@ -26,7 +26,7 @@ def all(scientific_name, taxonomy, illumina_only, sra_blacklist, config, no_seq=
 		start_time = time.time()
 		genome_data = genome(synonyms_scientific_names, taxonomy, search_similar_species)
 		print(f"Assembly search completed ! elapsed time : {displayTime(time.time() - start_time)}")	
-  
+
 	if no_seq==False:
 		# DNAseq
 		start_time = time.time()
@@ -35,11 +35,10 @@ def all(scientific_name, taxonomy, illumina_only, sra_blacklist, config, no_seq=
 			json_dnaseq = getBetterSra(synonyms_scientific_names, taxonomy, "DNA", illumina_only, sra_blacklist, config, search_similar_species=True)
 		print(f"DNAseq search completed ! elapsed time : {displayTime(time.time() - start_time)}")		
 
-		# RNAseq
+		# RNAseq (for a future update)
 		#start_time = time.time()
 		#json_rnaseq = getBetterSra(synonyms_scientific_names, taxonomy, "RNA", illumina_only, sra_blacklist, config, search_similar_species=False)
 		#if not json_rnaseq and search_similar_species:
-		#	start_time = time.time()
 		#	json_rnaseq = getBetterSra(synonyms_scientific_names, taxonomy, "RNA", illumina_only, sra_blacklist, config, search_similar_species=True)
 		#print(f"RNAseq search completed ! elapsed time : {displayTime(time.time() - start_time)}")
 
@@ -56,18 +55,4 @@ def genome(synonyms_scientific_names, taxonomy, search_similar_species=False):
 def proteins(synonyms_scientific_names, taxonomy, search_similar_species=False):
 	return getProteins(synonyms_scientific_names, taxonomy, search_similar_species)
 
-
-
-# def dna(scientific_name, taxonomy, illumina_only, sra_blacklist):
-# 	dna = getBetterSra(scientific_name, taxonomy, "DNA", illumina_only=illumina_only, sra_blacklist=sra_blacklist)
-# 	if not rna["runs"]:
-# 		raise ValueError(f"No dna sequencing data have been found for {scientific_name} in the NCBI-SRA database.")
-# 	return dna
-
-
-# def rna(scientific_name, taxonomy, illumina_only, sra_blacklist):
-# 	rna = getBetterSra(scientific_name, taxonomy, "RNA", illumina_only=illumina_only, sra_blacklist=sra_blacklist)
-# 	if not rna["runs"]:
-# 		raise ValueError(f"No rna sequencing data have been found for {scientific_name} in the NCBI-SRA database.")
-# 	return rna
 

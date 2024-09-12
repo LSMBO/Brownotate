@@ -12,7 +12,7 @@ def database_search():
 	taxID = request.json.get('taxID')
 	force_new_search = request.json.get('force_new_search')
 	current_datetime = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
- 
+
 	if not user or not taxID:
 		return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
 
@@ -26,7 +26,7 @@ def database_search():
 	command = build_dbsearch_command(taxID, current_datetime)
 	stdout, stderr = run_command(command, current_datetime)
 	if stderr:
-		return jsonify({'status': 'error', 'message': stderr}), 500
+		return jsonify({'status': 'error', 'stdout': stdout, 'stderr': stderr}), 500
 
 	dbsearch_file = f"output_runs/{current_datetime}/Database_Search.json"
 	with open(dbsearch_file, 'r') as file:

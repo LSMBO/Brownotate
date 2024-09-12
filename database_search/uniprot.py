@@ -198,7 +198,6 @@ def uniprot_fasta(url):
     file_name="output_testing.fasta"
     r = get_url(url)
     write_fasta(r.text, file_name)
-    # while there are next pages, paginate through them
     print(r.links)
     while r.links.get("next", {}).get("url"):
         r = get_url(r.links["next"]["url"])

@@ -11,10 +11,14 @@ def server_path():
         extension = data.get('extension')
         if not os.path.exists(path):
             return jsonify({"error": "Path not found"}), 404
-        
+
+        if extension == ".fasta" or extension == ".fa" or extension == ".fna" or extension == ".faa":
+            extensions = (".fasta", ".fa", ".fna", ".faa")
+        else:
+            extensions = extension
         matching_files = []
         for file in os.listdir(path):
-            if file.endswith(extension):
+            if file.endswith(extensions):
                 matching_files.append(os.path.join(path, file))
         return jsonify({"results": matching_files}), 200
 

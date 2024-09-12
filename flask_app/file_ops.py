@@ -3,9 +3,9 @@ import datetime
 import zipfile
 from flask import send_file, jsonify
 
-def create_upload_folder(upload_folder):
+def create_upload_folder():
     current_date = datetime.datetime.now().strftime("%d-%m-%Y")
-    upload_folder = os.path.join(upload_folder, current_date)
+    upload_folder = os.path.join('uploads', current_date)
     os.makedirs(upload_folder, exist_ok=True)
     return upload_folder
 

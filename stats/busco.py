@@ -1,20 +1,10 @@
 import shutil
-import os
+import os, sys
 import subprocess
 import json
 import csv
 
-def busco(input_file, taxo, mode, cpus, busco_lineage_dirpath="../../stats/", custom=False, ):
-    if not busco_lineage_dirpath.endswith('/'):
-        busco_lineage_dirpath = busco_lineage_dirpath + '/'
-    busco_lineage = busco_lineage_dirpath + "eukaryota_odb10"
-    lineage = taxo["lineage"]
-    for entry in lineage:
-        group = entry["taxonId"]
-        if group == 2:
-            busco_lineage = busco_lineage_dirpath + "bacteria_odb10"
-        if group == 2157:
-            busco_lineage = busco_lineage_dirpath + "archaea_odb10"
+def busco(input_file, taxo, mode, cpus, custom=False):
     output_rep = "busco_genome"
     if custom:
         output_rep = "busco_custom_genome"
@@ -22,18 +12,36 @@ def busco(input_file, taxo, mode, cpus, busco_lineage_dirpath="../../stats/", cu
         output_rep = "busco_annotation"
         if custom:
             output_rep = "busco_custom_annotation"
-    command = get_command(cpus, input_file, busco_lineage, output_rep, mode)
+    if os.path.exists(output_rep):
+        shutil.rmtree(output_rep)
+        
+    busco_lineage = get_busco_lineage(taxo)
+    if os.path.exists(f"../../stats/{busco_lineage}"):
+        busco_lineage_path = f"../../stats/{busco_lineage}"
+        command = get_command(cpus, input_file, output_rep, mode, busco_lineage_path, True)
+    else:
+        command = get_command(cpus, input_file, output_rep, mode, busco_lineage, False)     
+    
+    print(command)
     with open('log_bin', 'w') as log_bin:
-        print(command)
-        subprocess.run(command, shell=True, check=True, stdout=log_bin, stderr=subprocess.PIPE)
+        process = subprocess.run(command, shell=True, check=True, stdout=log_bin, stderr=subprocess.PIPE, text=True)
+        if process.stderr:
+            print("Error: ", process.stderr)
+    
+    lineage_dir = f"busco_downloads/lineages/{busco_lineage}"
+    if os.path.exists(lineage_dir):
+        shutil.move(lineage_dir, f"../../stats/{busco_lineage}")
+        
     if os.path.exists("busco_downloads"):
         shutil.rmtree("busco_downloads")
     if os.path.exists("log_bin"):
         os.remove("log_bin")
-    result = get_busco_result(output_rep)
-    for directory in ["run_bacteria_odb10", "run_eukaryota_odb10", "run_archaea_odb10"]:
-        if os.path.exists(directory):
-            shutil.rmtree(directory)
+        
+    result = get_busco_result(output_rep, busco_lineage)
+    
+    if os.path.exists(f"run_{busco_lineage}"):
+        shutil.rmtree(f"run_{busco_lineage}")
+
     if mode=='genome':
         makeJson("Busco_genome.json", result)
     else:
@@ -45,24 +53,48 @@ def makeJson(title, object):
     with open(title, "w") as f:
         json.dump(object, f)
 
+def get_busco_lineage(taxo):
+    lineage_names = [entry['scientificName'].lower() for entry in taxo['lineage']]
 
-def get_command(cpus, input_file, lineage, output_rep, mode):
-    return f"busco -c {cpus} -i {input_file} -l {lineage} -o {output_rep} -m {mode} --offline"
-
-def get_full_table_path(output_rep):
-    run_directories = ["run_bacteria_odb10", "run_eukaryota_odb10", "run_archaea_odb10"]
-    for directory in run_directories:
-        file_path = os.path.join(output_rep, directory, "full_table.tsv")
-        if os.path.exists(file_path):
-            return file_path
+    with open("../../stats/busco_lineages.txt", 'r') as lineages_file:
+        lines = lineages_file.readlines()
         
-def get_busco_result(output_rep):
+    lineage_tree = {}
+    current_level = [lineage_tree]
+
+    for line in lines:
+        level = line.count('    ')
+        lineage_name = line.strip()
+        current_level = current_level[:level + 1]
+        current_level[-1][lineage_name] = {}
+        current_level.append(current_level[-1][lineage_name])
+
+    def search_best_lineage(tree, names, last_key=None):
+        for name in names:
+            name_with_suffix = f"{name}_odb10"
+            if name_with_suffix in tree:
+                return search_best_lineage(tree[name_with_suffix], names, name_with_suffix)
+        return last_key
+    
+    return search_best_lineage(lineage_tree, lineage_names)
+
+def get_command(cpus, input_file, output_rep, mode, lineage, offline):
+    if offline:
+        return f"busco -c {cpus} -i {input_file} -o {output_rep} -m {mode} -l {lineage} --metaeuk --offline"
+    return f"busco -c {cpus} -i {input_file} -o {output_rep} -m {mode} -l {lineage} --metaeuk"
+
+def get_full_table_path(output_rep, lineage):
+    file_path = os.path.join(output_rep, f"run_{lineage}/full_table.tsv")
+    if os.path.exists(file_path):
+        return file_path
+
+def get_busco_result(output_rep, lineage):
     result = {}
     for file in os.listdir(output_rep):
         if file.endswith(".json"):
             with open(output_rep+"/"+file) as f:
                 result = json.load(f)
-    full_table_path = get_full_table_path(output_rep)
+    full_table_path = get_full_table_path(output_rep, lineage)
     if full_table_path:
         with open(full_table_path, newline='') as tsvfile:
             next(tsvfile)
@@ -90,3 +122,4 @@ def get_busco_result(output_rep):
             }
             result["full_table"] = full_table_result
     return result
+

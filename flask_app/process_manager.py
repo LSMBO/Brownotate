@@ -36,23 +36,3 @@ def check_process(run_id):
         update = {'$set': {'status': 'failed'}}
         update_one('runs', query, update)
         
-        
-# running_processes = {}
-
-# def add_process(run_id, process):
-#     running_processes[run_id] = process
-
-# def remove_process(run_id):
-#     if run_id in running_processes:
-#         del running_processes[run_id]
-
-# def get_process(run_id):
-#     return running_processes.get(run_id)
-
-# def check_process(run_id):
-#     process = running_processes.get(int(run_id))
-#     if not process:
-#         query = {'parameters.id': run_id}
-#         update = {'$set': {'status': 'failed'}}
-#         update_one('runs', query, update)
-        

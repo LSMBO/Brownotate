@@ -16,7 +16,7 @@ def upload_file():
         if 'file0' not in request.files:
             return jsonify({'status': 'error', 'message': 'No files found'}), 400
         
-        upload_folder = create_upload_folder('uploads')
+        upload_folder = create_upload_folder()
         file_paths = handle_file_upload(request.files, upload_folder)
         
         if file_type == "sequencing":
@@ -41,5 +41,4 @@ def upload_file():
 
     except Exception as e:
         error_message = str(e)
-        print("Unexpected error:", error_message)
         return jsonify({'status': 'error', 'message': f"Unexpected error: {error_message}"}), 500

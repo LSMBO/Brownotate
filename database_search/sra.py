@@ -13,7 +13,6 @@ def getBetterSra(synonyms_scientific_names, taxonomy, type, illumina_only, sra_b
     top10 = getTop10Sra(synonyms_scientific_names, type, illumina_only=illumina_only, sra_blacklist=sra_blacklist)
     if top10:
         return top10
-    
     if search_similar_species:
         lineage_taxo_ids = [object['taxonId'] for object in reversed(taxonomy.get("lineage"))]
         exclude_ids = []
@@ -74,13 +73,6 @@ def getTop10Sra(scientific_name_list, type, max_bases=10**25, illumina_only=Fals
                 top_entries[i]['taxonId'] = ncbi.getTaxonID(top_entries[i]['scientific_name'])
             # Convert the result list to a JSON object and return it
             for entry in top_entries:
-                # If the platform is Oxford Nanopore or PacBio SMRT, it return the sequencing as a JSON
-                if entry["platform"] == "OXFORD_NANOPORE" or entry["platform"] == "PACBIO_SMRT":
-                        return {
-                            'data_type' : type.lower()+"seq",
-                            'database' : 'sra',
-                            'runs' : [entry]
-                        }
                 return {
                         'data_type' : type.lower()+"seq",
                         'database' : 'sra',
@@ -99,19 +91,22 @@ def sra_db_search(library_strategy, scientific_name_list=None, accession=None, i
         'Count' : 0,
         'IdList' : []
     }
-    
+
     if library_strategy == "RNA":
-        term = f"\"biomol rna\"[Properties] AND "
-    elif library_strategy == "DNA":
-        term = f"\"biomol dna\"[Properties] AND "
+        term = f"\"biomol rna\"[Properties]"
+    else: #library_strategy == "DNA"
+        term = f"\"biomol dna\"[Properties]"
+    
+    term = f"{term} NOT DNBSEQ[Platform]"
+
     if illumina_only:
-        term += "Illumina[Platform] AND "
+        term += f"{term} AND Illumina[Platform]"
     if sra_blacklist:
         term += f" NOT ({' OR '.join(sra_blacklist)})"
 
     # If accession is not None, it means that a specific sra entry is searched
     if accession is not None:
-        term_list = [f"{term}{accession}"]
+        term_list = [f"{term} AND {accession}"]
     else:
         if scientific_name_list:
             term_list = []
@@ -119,7 +114,8 @@ def sra_db_search(library_strategy, scientific_name_list=None, accession=None, i
             for i in range(0, num_names, 10):
                 term_list.append(term)
                 scientific_name_sublist = scientific_name_list[i:min(i+10, num_names)]
-                term_list[-1] = f"{term_list[-1]}({(' OR '.join([f'{name}[Organism]' for name in scientific_name_sublist]))})"
+                term_list[-1] = f"{term_list[-1]} AND ({(' OR '.join([f'{name}[Organism]' for name in scientific_name_sublist]))})"
+
     for term in term_list:
         # Search SRA for sequencing data using the given search term
         search_handle = Entrez.esearch(db="sra",
@@ -220,7 +216,7 @@ def getSequencing(run_type, accession_list, config):
         runs.append(sra_db_search(run_type, accession=acc))
     return {"data_type": "dnaseq", "database": "sra", "runs": runs}
         
-
+# Estimations:
 # 1,000,000,000,000 --> 255.9Gb
 # 300,000,000,000 --> 63.8Gb
 # 100,000,000,000 --> 34,4Gb X

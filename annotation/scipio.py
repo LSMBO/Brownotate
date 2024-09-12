@@ -2,8 +2,14 @@ import subprocess
 import os
 import multiprocessing
 import shutil
+import json
 
-conda_bin_path = os.environ["CONDA_PREFIX"]+ "/bin"
+base_dir = os.path.dirname(os.path.abspath(__file__))
+config_path = os.path.join(base_dir, '..', 'config.json')
+with open(config_path) as config_file:
+    config = json.load(config_file)
+
+conda_bin_path = f"{config['BROWNOTATE_ENV_PATH']}/bin"
 scipio_script_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/ext"
       
 def scipio(genome_files, evidence_file, flex=False):
@@ -68,26 +74,26 @@ def run_flexible_scipio(genome_file, evidence_file, work_dir):
 def blat(genome_file, evidence_file, flex=False):
     if not flex:
         print(f"Run blat depuis {os.getcwd()}")
-        command = f"{scipio_script_path}/scipio.1.4.1.pl --blat_output=prot.vs.genome.psl \"{genome_file}\" \"{evidence_file}\" > scipio.yaml"
+        command = f"perl {scipio_script_path}/scipio.1.4.1.pl --blat_output=prot.vs.genome.psl \"{genome_file}\" \"{evidence_file}\" > scipio.yaml"
     else:
-        command = f"{scipio_script_path}/scipio.1.4.1.pl --blat_output=prot.vs.genome.psl --min_identity=50 --min_coverage=50 --min_score=0.2 \"{genome_file}\" \"{evidence_file}\" > scipio.yaml"
+        command = f"perl {scipio_script_path}/scipio.1.4.1.pl --blat_output=prot.vs.genome.psl --min_identity=50 --min_coverage=50 --min_score=0.2 \"{genome_file}\" \"{evidence_file}\" > scipio.yaml"
     print(f"({os.path.basename(os.getcwd())}) {command}")
     subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 def extract_gff_from_yaml():
     if not os.path.exists("scipio.scipiogff") or os.path.getsize("scipio.scipiogff") == 0:
-        command = f"cat scipio.yaml | {scipio_script_path}/yaml2gff.1.4.pl > scipio.scipiogff"
+        command = f"cat scipio.yaml | perl {scipio_script_path}/yaml2gff.1.4.pl > scipio.scipiogff"
         print(f"({os.path.basename(os.getcwd())}) {command}")
         try:
             subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except subprocess.CalledProcessError as e:
             print(f"({os.path.basename(os.getcwd())}) Error : scipio.scipiogff has not been generated: {e.stderr.decode()}")
-    command = f"{conda_bin_path}/scipiogff2gff.pl --in=scipio.scipiogff --out=scipio.gff"
+    command = f"perl {conda_bin_path}/scipiogff2gff.pl --in=scipio.scipiogff --out=scipio.gff"
     print(f"({os.path.basename(os.getcwd())}) {command}")
     subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 def gff_to_genbank(genome_file):
-    command = f"{conda_bin_path}/gff2gbSmallDNA.pl scipio.gff {genome_file} 1000 genes.raw.gb"
+    command = f"perl {conda_bin_path}/gff2gbSmallDNA.pl scipio.gff {genome_file} 1000 genes.raw.gb"
     print(f"({os.path.basename(os.getcwd())}) {command}")
     subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 

@@ -1,10 +1,16 @@
 import subprocess
 import os
+import json
+
+base_dir = os.path.dirname(os.path.abspath(__file__))
+config_path = os.path.join(base_dir, '..', 'config.json')
+with open(config_path) as config_file:
+    config = json.load(config_file)
 
 def download_sra(data):
-    commands = []  # List of commands to execute
+    commands = []
     sra_files = []
-    # Create list of commands
+
     for run_data in data["runs"]:
         accession = run_data["accession"]
         platform = run_data["platform"]
@@ -29,7 +35,6 @@ def download_sra(data):
         else:
             print(f"Error : The platform {platform} is not supported for the sequencing {accession}")
     
-    # Execute the list of commands with a maximum of 5 retries
     for command in commands:
         cmd = command["cmd"]
         accession = command["accession"]
@@ -38,10 +43,13 @@ def download_sra(data):
         retry_count = 0
         success = False
         
+        env = os.environ.copy()
+        env['PATH'] = os.path.join(config['SRA_DOWNLOAD_ENV_PATH'], 'bin') + os.pathsep + env['PATH']
+
         while retry_count < 5 and not success:
             try:
                 print(cmd)
-                subprocess.run(cmd, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                subprocess.run(cmd, shell=True, check=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 success = True
             except subprocess.CalledProcessError as e:
                 retry_count += 1

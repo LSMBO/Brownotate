@@ -7,6 +7,7 @@ db = client['brownotate-db']
 users_collection = db['users']
 runs_collection = db['runs']
 dbsearch_collection = db['dbsearch']
+processes_collection = db['processes']
 
 if 'users' not in db.list_collection_names():
     db.create_collection('users')

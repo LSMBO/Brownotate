@@ -18,7 +18,8 @@ def create_run():
 		'parameters': parameters
 	}
 	insert_result = insert_one('runs', run_data)
-	socketio.emit('runs_updated', {'run_id': parameters.id, 'status': 'upload'})
+	socketio.emit('runs_updated', {'run_id': parameters['id'], 'status': 'upload'})
+
 	if insert_result['status'] == 'success':
 		run_data['_id'] = str(insert_result['inserted_id'])
 		return jsonify({'status': 'success', 'run': run_data}), 200

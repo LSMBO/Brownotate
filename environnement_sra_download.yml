@@ -1,0 +1,6 @@
+name: sra-download
+channels:
+  - bioconda
+dependencies:
+  - python=3.7
+  - sra-tools=3.1.1
