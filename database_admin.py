@@ -14,11 +14,9 @@ def create_or_update_user(email, password):
     password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
     try:
-        # Cherche un utilisateur avec le même email
         existing_user = users_collection.find_one({'email': email})
 
         if existing_user:
-            # Si l'utilisateur existe, mettre à jour le mot de passe
             result = users_collection.update_one(
                 {'email': email},
                 {'$set': {'password_hash': password_hash}}
@@ -28,7 +26,6 @@ def create_or_update_user(email, password):
             else:
                 print(f"User with email {email} not found for update.")
         else:
-            # Si l'utilisateur n'existe pas, créer un nouvel utilisateur
             user_data = {
                 'email': email,
                 'password_hash': password_hash
