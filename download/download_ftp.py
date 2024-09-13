@@ -1,4 +1,4 @@
-from error_handling.ftp import connect_ftp, cwd_ftp, retrbinary_ftp
+from ftp.ftp import connect_ftp, cwd_ftp, retrbinary_ftp
 import gzip
 import shutil
 import os

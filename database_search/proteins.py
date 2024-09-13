@@ -20,7 +20,7 @@ def getProteins(synonyms_scientific_names, taxonomy, search_similar_species):
         if not json_ensembl and search_similar_species:
             json_ensembl = ensembl.getBetterEnsembl(synonyms_scientific_names[0], taxonomy, 'pep', True)
         print(f"Ensembl proteins search completed ! A protein dataset has been found for {json_ensembl['scientific_name']}. Elapsed time : {displayTime(time.time() - start_time)}")
-    
+
     start_time = time.time()
     json_uniprot_ok = False
     i = 0

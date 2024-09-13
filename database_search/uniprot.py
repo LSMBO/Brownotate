@@ -1,5 +1,6 @@
 import requests
 import sys
+import time
 
 class UniprotTaxo:
     def __init__(self, species, fast_mode=False):
@@ -28,8 +29,8 @@ class UniprotTaxo:
         species_parts = scientific_name.lower().split(' ')
         scientific_name_join = "%20".join(species_parts)
         url = f"https://rest.uniprot.org/taxonomy/search?query=(scientific:%22{scientific_name_join}%22)%20AND%20(rank:SPECIES)&size=500&format=json"
-        response = requests.get(url)
-        if response.status_code == 200:
+        response = requests_get(url)
+        if response:
             results = response.json()["results"]
             for result in results:
                 res_scientific_name = result.get("scientificName")
@@ -41,8 +42,8 @@ class UniprotTaxo:
     @staticmethod
     def fetch_scientific_name_and_rank(taxoId):
         url = f"https://rest.uniprot.org/taxonomy/search?query=(tax_id:{taxoId})&size=500&format=json"
-        response = requests.get(url)
-        if response.status_code == 200 and response.json()["results"]:
+        response = requests_get(url)
+        if response and response.json()["results"]:
             return (
                 response.json()["results"][0]["scientificName"],
                 response.json()["results"][0]["rank"],
@@ -52,8 +53,8 @@ class UniprotTaxo:
 
     def fetch_taxonomy_data(self):
         url = f"https://rest.uniprot.org/taxonomy/search?query=(tax_id:{self.taxID})%20AND%20(rank:SPECIES)&size=500&format=json"
-        response = requests.get(url)
-        if response.status_code == 200:
+        response = requests_get(url)
+        if response:
             results = response.json()["results"]
             for result in results:
                 taxon_id = result["taxonId"]
@@ -63,8 +64,8 @@ class UniprotTaxo:
     
     def fetch_proteome_data(self):
         url = f"https://rest.uniprot.org/proteomes/search?query=(organism_id:{self.taxID})&size=500&format=json"
-        response = requests.get(url)
-        if response.status_code == 200 and response.json()["results"]:
+        response = requests_get(url)
+        if response and response.json()["results"]:
             results = response.json()["results"]
             proteome = ""
             for result in results:
@@ -86,8 +87,8 @@ class UniprotTaxo:
 
     def fetch_swissprot_data(self):
         url = f"https://rest.uniprot.org/uniprotkb/search?query=(organism_id:{self.taxID})%20AND%20(reviewed:true)&format=json"
-        response = requests.get(url)
-        if response.status_code == 200 and response.json()["results"]:
+        response = requests_get(url)
+        if response and response.json()["results"]:
             results = response.json()["results"]
             if results:
                 return {
@@ -102,8 +103,8 @@ class UniprotTaxo:
 
     def fetch_trembl_data(self):
         url = f"https://rest.uniprot.org/uniprotkb/search?query=(organism_id:{self.taxID})%20AND%20(reviewed:false)&format=json"
-        response = requests.get(url)
-        if response.status_code == 200 and response.json()["results"]:
+        response = requests_get(url)
+        if response and response.json()["results"]:
             results = response.json()["results"]
             if results:
                 return {
@@ -171,8 +172,8 @@ class UniprotTaxo:
     
 def search_proteome(taxID):
     url = f"https://rest.uniprot.org/proteomes/search?query=(organism_id:{taxID})&size=500&format=json"
-    response = requests.get(url)
-    if response.status_code == 200 and response.json()["results"]:
+    response = requests_get(url)
+    if response and response.json()["results"]:
         results = response.json()["results"]
         proteome = ""
         for result in results:
@@ -193,6 +194,22 @@ def search_proteome(taxID):
     return {}
 
 
+def requests_get(url):
+    attempt = 0
+    while attempt < 3:
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                return response
+            else:
+                print(f"Error: Received status code {response.status_code}")
+        except requests.exceptions.RequestException as e:
+            print(f"Attempt {attempt + 1} failed: {e}")
+        attempt += 1
+        if attempt < 3:
+            print(f"Retrying in 5 seconds...")
+            time.sleep(5)
+    raise Exception(f"Failed to fetch data from {url} after 3 attempts")
 
 def uniprot_fasta(url):
     file_name="output_testing.fasta"
@@ -203,11 +220,24 @@ def uniprot_fasta(url):
         r = get_url(r.links["next"]["url"])
         write_fasta(r.text, file_name)
         
-def get_url(url):
-    response = requests.get(url)
-    if not response.ok:
-        response.raise_for_status()
-        sys.exit()
+def get_url(url, max_attempts=3):
+    attempts = 0
+    while attempts < max_attempts:
+        try:
+            response = requests.get(url)
+            if response.ok:
+                return response
+            else:
+                response.raise_for_status()
+        except Exception as e:
+            attempts += 1
+            print(f"Attempt {attempts} failed for URL: {url}. Error: {e}")
+            if attempts < max_attempts:
+                print("Retrying in 5 seconds...")
+                time.sleep(5)
+            else:
+                print(f"Max attempts reached. Failed to fetch URL: {url}")
+                raise e
 
     return response
 

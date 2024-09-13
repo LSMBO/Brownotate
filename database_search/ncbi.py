@@ -1,4 +1,4 @@
-from . import ncbi_ftp
+from ftp import ncbi
 from database_search.uniprot import UniprotTaxo
 import requests
 
@@ -22,7 +22,7 @@ def getTaxonID(scientific_name):
 def getBetterNCBI(scientific_name, taxonomy, bank, data_type, search_similar_species=False): # data_type = genome or proteins
     lineage_scientific_names = [object['scientificName'] for object in taxonomy.get("lineage")]
     categories = getNCBICategories(lineage_scientific_names)
-    results = ncbi_ftp.getDataFromFTP(data_type, [scientific_name], categories, bank)
+    results = ncbi.getDataFromFTP(data_type, [scientific_name], categories, bank)
     if search_similar_species == False or "url" in results:
         if "url" in results:
             results["taxonId"] = getTaxonID(results["scientific_name"])  
@@ -32,7 +32,7 @@ def getBetterNCBI(scientific_name, taxonomy, bank, data_type, search_similar_spe
     for taxo_id in lineage_taxo_ids:
         children =  UniprotTaxo.fetch_children(taxo_id, exclude_ids, "scientificName")
         exclude_ids.extend(children)
-        results = ncbi_ftp.getDataFromFTP(data_type, children, categories, bank)
+        results = ncbi.getDataFromFTP(data_type, children, categories, bank)
         if results:
             taxonId = getTaxonID(results["scientific_name"])
             results["taxonId"] = taxonId
