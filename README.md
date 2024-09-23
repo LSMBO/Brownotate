@@ -2,6 +2,8 @@
 
 Brownotate is an application designed for generating a protein sequence database for a given species. It can be run as a command-line tool or as a web application using Flask.
 
+Before setting up your own Brownotate server, you can try a ***demo version*** without installing anything. Simply contact me at browna@unistra.fr, and I will create an account for you on the server hosted at my institute.
+
 ## Prerequisites
 
 -**Operating System**: Linux (Ubuntu 22.04 or similar). Make sure to use a Linux server as Conda dependencies are not compatible with other operating systems.
@@ -13,7 +15,6 @@ Brownotate is an application designed for generating a protein sequence database
 First, clone the Brownotate repository:
 
 ```
-bash
 git clone https://github.com/LSMBO/Brownotate.git
 cd Brownotate
 ```
@@ -25,7 +26,6 @@ If you do not have Conda installed, follow these steps to install it:
 1. ***Download Anaconda***:
 
 ```
-bash
 wget https://repo.anaconda.com/archive/Anaconda3-2024.06-1-Linux-x86_64.sh
 chmod +x Anaconda3-2024.06-1-Linux-x86_64.sh
 ./Anaconda3-2024.06-1-Linux-x86_64.sh
@@ -40,7 +40,6 @@ Follow the instructions to complete the installation:
 2. ***Initialize Conda***:
 
 ```
-bash
 conda init
 ```
 
@@ -51,7 +50,6 @@ Create and activate the required Conda environments:
 For the br environment:
 
 ```
-bash
 cd /path/to/Brownotate
 conda env create -f environment_br.yml
 ```
@@ -59,7 +57,6 @@ conda env create -f environment_br.yml
 For the sra-download environment:
 
 ```
-bash
 cd /path/to/Brownotate
 conda env create -f environment_sra_download.yml
 ```
@@ -77,14 +74,13 @@ Click on ***Download***.
 2. ***Install MongoDB:***
 
 ```
-bash
 sudo dpkg -i mongodb-org-server_7.0.14_amd64.deb
 ```
 
 3. ***Start MongoDB:***
 
 ```
-bash
+sudo systemctl start mongod
 sudo systemctl status mongod
 ```
 
@@ -99,14 +95,12 @@ Click on ***Download***.
 5. ***Install MongoDB Shell:***
 
 ```
-bash
 sudo dpkg -i mongodb-mongosh_2.3.0_amd64.deb
 ```
 
 6. ***Configure MongoDB:***
 
 ```
-bash
 mongosh
 use brownotate-db
 db.createCollection("users")
@@ -148,7 +142,6 @@ Once the client is set up, you need to launch the Brownotate backend, which is a
 Use the following command to start the Flask server:
 
 ```
-bash
 conda activate br
 gunicorn -w 4 -b 0.0.0.0:8800 run_flask:app
 ```
@@ -162,7 +155,6 @@ You have a server with the public IP address **1.2.3.4**. This server hosts the 
 You configure the **config.js** file like this:
 
 ```
-bash
 const CONFIG = {
   API_BASE_URL: 'http://5.6.7.8:8800'
 };
@@ -174,7 +166,6 @@ This setup means the client will send requests to the server at **5.6.7.8** on p
 On the server **5.6.7.8** where Brownotate backend is installed, you need to launch the Flask application with the following command:
 
 ```
-bash
 gunicorn -w 4 run_flask:app --bind 0.0.0.0:8800
 ```
 
@@ -244,41 +235,35 @@ Brownotate offers a flexible command-line interface for genome annotation and pr
 **Run in automatic mode for species "Homo sapiens":**
 
 ```
-bash
 python /path/to/Brownota/main.py -s "Homo sapiens" -a
 ```
 
 **Run the database search (DBS) for "Homo sapiens" with a specific genome file:**
 
 ```
-bash
 python /path/to/Brownota/main.py -s "Homo sapiens" --dbs-only
 ```
 
 **Run the database search (DBS) for "Mus musculus" by searching for sequencing only, and only Illumina sequencing:**
 
 ```
-bash
 python /path/to/Brownota/main.py -s "Mus musculus" --dbs-only --no-genome --no-proteins --only-illumina
 ```
 
 **Run for Mus musculus with a custom genome assembly, skipping busco:**
 
 ```
-bash
 python /path/to/Brownota/main.py -s "Mus musculus" -g /path/to/mus_musculus_genome.fasta --skip-busco
 ```
 
 **Run for Drosophila melanogaster (taxid: 7227) with 2 sequencing datasets from NCBI SRA database:**
 
 ```
-bash
 python /path/to/Brownota/main.py -s 7227 -d SRR30623762	-d SRR30623766	
 ```
 
 **Resume a previous run:**
 
 ```
-bash
 python /path/to/Brownota/main.py --resume run_id
 ```
