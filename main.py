@@ -76,6 +76,7 @@ parser.add_argument('-e', '--evidence', help='File path to the protein evidence 
 parser.add_argument('-eu', '--evidence-url', help='Evdence download URL (Uniprot rest url or Ensembl/NCBI FTP)')
 parser.add_argument('--remove-included-sequences', action='store_true', help='Consider two protein sequences as redundant if one sequence is strictly included in the other')
 parser.add_argument('--skip-remove-redundancy', action='store_true', help='Skip the step that removes redundancy in the protein sequences')
+parser.add_argument('-ml', '--min-length', type=int, help="Augustus predicted sequences with a length below this threshold are removed from the annotation.")
 
 # Busco
 parser.add_argument('--skip-busco-assembly', action='store_true', help='Skip the BUSCO evaluation of the assembly')
@@ -123,7 +124,7 @@ if not args.species and not args.resume:
 if args.dbs_only:
     for arg in ['auto', 'dna_sra', 'dna_file', 'skip_fastp', 'skip_bowtie2', 'skip_filtering', 'genome', 'genome_url',
                 'evidence', 'skip_busco_assembly', 'skip_busco_annotation', 'skip_busco', 'remove_included_sequences',
-                'skip_remove_redundancy', 'skip_brownaming', 'brownaming_maxrank', 'brownaming_maxtaxo',
+                'skip_remove_redundancy', 'min_length', 'skip_brownaming', 'brownaming_maxrank', 'brownaming_maxtaxo',
                 'brownaming_exclude', 'brownaming_db']:
         if getattr(args, arg):
             raise ValueError(f"\nThe parameters --dbs-only and --{arg.replace('_', '-')} cannot be used together.")
@@ -240,7 +241,6 @@ if args.genome:
 
 input_evidence_file = ""
 if args.evidence:
-    print(args.evidence)
     if not os.path.exists(args.evidence):
         raise FileNotFoundError(f'File {f} not found')
     input_evidence_file = os.path.abspath(args.evidence)
@@ -627,15 +627,24 @@ if annotation_tool=="augustus":
         STATE["annotation"] = pipelines.run_augustus(STATE, annotation)
         makeJson("state.json", STATE)
         logger.info(f"Augustus annotation has been successfully completed.")
-       
+
+if args.min_length:
+    logger.info(f"Remove sequences with a length shorter than {args.min_length} amino acids.")
+    if "annotation_min_length" in STATE:
+        logger.info(f"Sequences with a length shorter than {args.min_length} has already been removed.")
+    else:
+        STATE["annotation_min_length"] = pipelines.run_remove_short_sequences(STATE, annotation)
+        makeJson("state.json", STATE)
+        logger.info(f"Sequences with a length shorter than {args.min_length} amino acids has been successfully removed")
+      
 if REDUNDANCY_MODE != 0:
     logger.info(f"Remove the redundancy.")  
     if "annotation_red" in STATE:  
-        logger.info(f"Redundancy has already been eliminated.")
+        logger.info(f"Redundancy has already been removed.")
     else:
-        STATE["annotation_red"] = pipelines.run_remove_redundancy(REDUNDANCY_MODE, STATE, annotation) #annotation.remove_redundancy(ANNOTATION, REDUNDANCY_MODE)
+        STATE["annotation_red"] = pipelines.run_remove_redundancy(REDUNDANCY_MODE, STATE, annotation)
         makeJson("state.json", STATE)
-        logger.info(f"Redundancy has been successfully eliminated.")
+        logger.info(f"Redundancy has been successfully removed.")
     
 if not args.skip_brownaming:
     logger.info(f"Annotate the predicted proteins using Brownaming (assigns a name).")

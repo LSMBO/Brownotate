@@ -7,13 +7,14 @@ update_run_parameters_bp = Blueprint('update_run_parameters_bp', __name__)
 def update_run_parameters():
     data = request.json
     user = data.get('user')
+    type = data.get('type')
     urls = data.get('urls')
     run_id = data.get('run_id')
-    
+        
     if not user or not urls or not run_id:
         return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
     
-    if 'assembly' in urls.keys():
+    if type == 'assembly':
         query = {
             "parameters.id": int(run_id)
         }
@@ -26,7 +27,7 @@ def update_run_parameters():
         if update_result['status'] != 'success':
             return jsonify({'status': 'error', 'message': update_result['message']}), 500
 
-    if 'evidence' in urls.keys():
+    if type == 'evidence':
         query = {
             "parameters.id": int(run_id)
         }

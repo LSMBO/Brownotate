@@ -33,6 +33,7 @@ output_runs/*
 uploads/*
 Brownaming-1.0.0/runs/*
 stats/transrate.py
+stats/*odb10/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

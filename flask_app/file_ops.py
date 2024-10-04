@@ -16,8 +16,12 @@ def handle_file_upload(files, upload_folder):
         if file.filename == '':
             continue
         file_path = os.path.join(upload_folder, file.filename)
-        file.save(file_path)
-        file_paths.append(file_path)
+        try:
+            file.save(file_path)
+            file_paths.append(file_path)
+        except Exception as e:
+            print(f"Error saving file '{file.filename}' to '{file_path}': {str(e)}")
+            return {'status': 'error', 'message': f"Failed to save file '{file.filename}'. Please try again."}, 500
     return file_paths
 
 def download_zip(rep_path):

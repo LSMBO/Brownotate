@@ -12,6 +12,7 @@ from .scipio import *
 from .model import *
 from .optimize_augustus import *
 from .augustus import *
+from .remove_short_sequences import *
 from .remove_redundancy import *
 from .brownaming import *
 from .busco import *

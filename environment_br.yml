@@ -21,3 +21,5 @@ dependencies:
     - pymongo==4.8.0
     - bcrypt==4.2.0
     - gunicorn==23.0.0
+    - eventlet==0.37.0
+    - psutil=6.0.0

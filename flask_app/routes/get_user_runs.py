@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_app.database import find
-from process_manager import check_process
+from process_manager import check_process, get_cpus_used
 
 get_user_runs_bp = Blueprint('get_user_runs_bp', __name__)
 
@@ -20,6 +20,6 @@ def get_user_runs():
         if run['status'] == 'running':
             check_process(run_id)
         updated_runs.append(run)
-        
-    return jsonify({'status': 'success', 'data': updated_runs}), 200
+    cpus = get_cpus_used()
+    return jsonify({'status': 'success', 'data': updated_runs, 'cpus': cpus}), 200
 

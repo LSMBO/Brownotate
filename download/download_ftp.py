@@ -12,10 +12,14 @@ def download_ftp(data, type):
 
     # Extract dir
     dir = '/'.join(url.split("/")[:-1])
-    dir = dir.replace(data['ftp'], '')
+    if dir.startswith('https://'):
+        dir = dir.replace(f"https://{data['ftp']}", '')
+    else:
+        dir = dir.replace(data['ftp'], '')
+        
     # Try FTP login
     ftp = connect_ftp(data["ftp"])
-    
+
     # Try FTP cwd
     cwd_ftp(ftp, dir)
 

@@ -38,7 +38,7 @@ def getBetterNCBI(scientific_name, taxonomy, bank, data_type, search_similar_spe
             results["taxonId"] = taxonId
             return results
     return {}
-        
+
     
 def getNCBICategories(lineage_scientific_names): 
     categories=[]

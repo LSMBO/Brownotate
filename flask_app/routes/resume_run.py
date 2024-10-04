@@ -41,7 +41,7 @@ def resume_run():
 	if not working_dir_id:
 		return jsonify({'status': 'error', 'message': 'working_dir_id not found'}), 400
 
-	update = {'$set': {'status': 'running'}}
+	update = {'$set': {'status': 'running', 'stderr' : '', 'stdout' : ''}}
 	update_one('runs', query, update)
 	socketio.emit('runs_updated', {'run_id': run_id, 'status': 'running'})
 	command = build_brownotate_resume_command(str(working_dir_id))

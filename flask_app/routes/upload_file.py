@@ -33,7 +33,6 @@ def upload_file():
             {'parameters.id': int(run_id)},
             {'$set': {file_parameters: file_paths}}
         )
-        
         if update_result['status'] == 'success':
             return jsonify({'status': 'success', 'file_paths': file_paths}), 200
         else:

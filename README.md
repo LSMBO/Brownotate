@@ -143,14 +143,14 @@ Use the following command to start the Flask server:
 
 ```
 conda activate br
-gunicorn -w 4 -b 0.0.0.0:8800 run_flask:app
+gunicorn -w 4 --worker-class eventlet --bind 0.0.0.0:8800 --timeout 2592000 run_flask:app 
 ```
 
 - The IP **0.0.0.0** allows the server to accept requests from any IP address. The port **8800** corresponds to the port on wich the server listens for requests from the cleint. Ensure that the port you choose is the same one configured in the web client's **config.js** file (see example below).
 
 ***Example: ***
 
-You have a server with the public IP address **1.2.3.4**. This server hosts the Brownotate client, the web application will be accessible via the URL **http://1.2.3.4:80** because the client is hosted on an Apache server using port 80 (for more details, see (https://github.com/LSMBO/brownotate-app)).
+You have a server with the public IP address **1.2.3.4**. This server hosts the Brownotate client, the web application will be accessible via the URL **http://1.2.3.4:80** because the client is hosted on an Apache server using port 80 (for more details, see https://github.com/LSMBO/brownotate-app).
 
 You configure the **config.js** file like this:
 
@@ -161,17 +161,11 @@ const CONFIG = {
 export default CONFIG;
 ```
 
-This setup means the client will send requests to the server at **5.6.7.8** on port **8800**.
+This setup means the client will send requests to the server **5.6.7.8** on port **8800**.
 
-On the server **5.6.7.8** where Brownotate backend is installed, you need to launch the Flask application with the following command:
+On the server **5.6.7.8** where Brownotate backend is installed, you need to launch the Flask application with the gunicorn command with **0.0.0.0:8800**. This will ensure that the server can receive requests from any client on port **8800** (as **0.0.0.0** allows connections from any IP).
 
-```
-gunicorn -w 4 run_flask:app --bind 0.0.0.0:8800
-```
-
-This will ensure that the server can receive requests from any client on port **8800** (as **0.0.0.0** allows connections from any IP).
-
-NB: It is also possible to host both the Brownotate client and the Brownotate program on the same server. In this case, you can configure the **brownotate-app/config.js** file with **API_BASE_URL: 'http://localhost:8800'**
+NB: It is also possible to host both the Brownotate client and the Brownotate backend on the same server. In this case, you can configure the **brownotate-app/config.js** file with **API_BASE_URL: 'http://localhost:8800'**
 
 2. ***Command-Line Interface:***
 
@@ -183,6 +177,8 @@ Brownotate offers a flexible command-line interface for genome annotation and pr
 - **`-s, --species`**: Name of the species (required, unless resuming a previous run).
 - **`--run-id`**: Identifier of the run.
 - **`--resume`**: Identifier of a run to resume if it was interrupted.
+- **`-od, --output-dir`**: Path to the output directory (default: current directory).
+- **`-c, --cpus`**: Number of CPUs to use (default: half of the available CPUs).
 
 ### Modes
 
@@ -191,11 +187,6 @@ Brownotate offers a flexible command-line interface for genome annotation and pr
 - **`--no-seq`**: Ignore sequencing data, can be used only with `--dbs-only` or `--auto`.
 - **`--no-genome`**: Ignore genome data, compatible only with `--dbs-only` or `--auto`.
 - **`--no-prots`**: Ignore protein data, only applicable with `--dbs-only`.
-
-### General Options
-
-- **`-od, --output-dir`**: Path to the output directory (default: current directory).
-- **`-c, --cpus`**: Number of CPUs to use (default: half of the available CPUs).
 
 ### Assembly Options
 
@@ -215,6 +206,7 @@ Brownotate offers a flexible command-line interface for genome annotation and pr
 - **`-eu, --evidence-url`**: URL to download protein evidence (Uniprot, Ensembl/NCBI).
 - **`--remove-included-sequences`**: Consider two proteins redundant if one is strictly included in the other.
 - **`--skip-remove-redundancy`**: Skip the step of removing redundant protein sequences.
+- **`-ml, --min-length`**: Augustus predicted sequences with a length below this threshold are removed from the annotation.
 
 ### BUSCO Options
 

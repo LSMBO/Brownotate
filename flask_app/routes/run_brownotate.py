@@ -35,9 +35,7 @@ def run_brownotate():
 		}
 	}
 	update_one('runs', query, update)
-	socketio.emit('runs_updated', {'run_id': run_id, 'status': 'running'})
- 
-	
+	socketio.emit('run_started', {'run_id': run_id, 'status': 'running'})
 	command = build_brownotate_command(parameters, current_datetime)
 	stdout, stderr = run_command(command, run_id)
  

@@ -12,7 +12,7 @@ def build_check_species_exists_command(species):
     return ["python", f"{config['BROWNOTATE_PATH']}/check_species_exists.py", "-s", species]
         
 def build_dbsearch_command(species, current_datetime):
-    arguments = ['-s', species, '--dbs-only', '-od', f'output_runs/{current_datetime}']
+    arguments = ['-s', species, '--run-id', f'DBS-{current_datetime}', '--dbs-only', '-od', f'output_runs/{current_datetime}']
     return ["python", f"{config['BROWNOTATE_PATH']}/main.py"] + arguments
 
 def build_brownotate_resume_command(run_id):
@@ -21,7 +21,12 @@ def build_brownotate_resume_command(run_id):
   
 def build_brownotate_command(parameters, current_datetime):
     species = parameters['species']['taxonID']
-    arguments = ['-s', species, '--run-id', current_datetime, '-od', f'output_runs/{current_datetime}']
+    if 'cpus' in parameters:
+        cpus = str(parameters['cpus'])
+    else:
+        cpus = str(int(os.cpu_count()/2))
+        
+    arguments = ['-s', species, '--run-id', current_datetime, '-od', f'output_runs/{current_datetime}', '--cpus', cpus]
     arguments += build_start_section_arguments(parameters['startSection'])
     arguments += build_annotation_section_arguments(parameters['annotationSection'])
     arguments += build_brownaming_section_arguments(parameters['brownamingSection'])
@@ -54,8 +59,13 @@ def build_start_section_arguments(start_section):
 def build_annotation_section_arguments(annotation_section):
     arguments = []
     if annotation_section['evidenceFile']:
-        arguments += add_files_or_accessions(annotation_section['evidenceFileList'], '-e')
-        
+        arguments.append('-e')
+        arguments.append(annotation_section['evidenceFileList'][0])
+
+    if annotation_section['minLength']:
+        arguments.append('--min-length')
+        arguments.append(annotation_section['minLength'])
+    
     # Nothing quoted : --skip-remove-redundancy
     # Same length (removeStrict) : default
     # Lower length (removeSoft) : --remove-included-sequence
@@ -72,7 +82,8 @@ def build_brownaming_section_arguments(brownaming_section):
         arguments.append('--skip-brownaming')
     if brownaming_section['excludedSpeciesList']:
         for taxa in brownaming_section['excludedSpeciesList']:
-            arguments += add_files_or_accessions(taxa, '--brownaming-exclude')
+            arguments.append('--brownaming-exclude')
+            arguments.append(taxa['taxID'])
     if brownaming_section['highestRank']:
         arguments.append('--brownaming-maxrank')
         arguments.append(brownaming_section['highestRank'])
@@ -81,7 +92,7 @@ def build_brownaming_section_arguments(brownaming_section):
 
 def build_busco_section_arguments(busco_section, start_section):
     arguments = []
-    if not busco_section['assembly'] and not start_section['genomeFile']:
+    if not busco_section['assembly']:
         arguments.append('--skip-busco-assembly')
     if not busco_section['annotation']:
         arguments.append('--skip-busco-annotation')
@@ -94,14 +105,17 @@ def add_files_or_accessions(items, flag):
         arguments.append(flag)
         arguments.append(item)
     return arguments
-
+   
 def run_command(command, run_id):
     process = None
     try:
+        cpus = '1'
+        if '--cpus' in command:
+            cpus = str(command[command.index('--cpus') + 1])
         command = ' '.join(f'"{arg}"' if ' ' in arg else arg for arg in command)
         print(f"Running command from {os.getcwd()} with run_id={run_id}:\n{command}")
         process = subprocess.Popen(command, shell=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        add_process(run_id, process, command)
+        add_process(run_id, process, command, cpus)
         stdout, stderr = process.communicate()
         if process.returncode != 0:
             print(f"Command failed with returncode {process.returncode}")

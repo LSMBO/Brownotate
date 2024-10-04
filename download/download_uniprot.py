@@ -44,7 +44,6 @@ def get_url(url, **kwargs):
     
     # Check if the response is OK (status code 200)
     if not response.ok:
-        print("response not ok")
         response.raise_for_status()
         sys.exit()
     

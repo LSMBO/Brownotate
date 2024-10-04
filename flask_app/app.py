@@ -18,6 +18,7 @@ from flask_app.routes.read_file import read_file_bp
 from flask_app.routes.download_file_server import download_file_server_bp
 from flask_app.routes.server_path import server_path_bp
 from flask_app.routes.resume_run import resume_run_bp
+from flask_app.routes.get_cpus import get_cpus_bp
 
 app = Flask(__name__)
 config = load_config()
@@ -43,3 +44,4 @@ app.register_blueprint(read_file_bp)
 app.register_blueprint(download_file_server_bp)
 app.register_blueprint(server_path_bp)
 app.register_blueprint(resume_run_bp)
+app.register_blueprint(get_cpus_bp)

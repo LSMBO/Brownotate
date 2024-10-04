@@ -4,5 +4,6 @@ from .scipio import *
 from .model import *
 from .optimize_model import *
 from .augustus import *
+from .remove_short_sequences import *
 from .remove_redundancy import *
 from .brownaming import *
