@@ -17,18 +17,18 @@ def database_search():
 		return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
 
 	if not force_new_search:
-		mongo_request = find('dbsearch', {'user': user, 'taxID': taxID})
+		mongo_request = find('dbsearch', {'taxID': taxID})
 		if mongo_request['status'] == 'success' and mongo_request['data']:
 			sorted_requests = sorted(mongo_request['data'], key=lambda x: datetime.datetime.strptime(x['date'], "%d%m%Y-%H%M%S"), reverse=True)
 			most_recent_request = sorted_requests[0]
 			return jsonify(most_recent_request)
-
-	command = build_dbsearch_command(taxID, current_datetime)
-	stdout, stderr = run_command(command, current_datetime)
+	run_id = f"DBS-{current_datetime}"
+	command = build_dbsearch_command(taxID, run_id)
+	stdout, stderr = run_command(command, run_id)
 	if stderr:
 		return jsonify({'status': 'error', 'stdout': stdout, 'stderr': stderr}), 500
 
-	dbsearch_file = f"output_runs/{current_datetime}/Database_Search.json"
+	dbsearch_file = f"output_runs/DBS-{current_datetime}/Database_Search.json"
 	with open(dbsearch_file, 'r') as file:
 		results = json.load(file)
 		mongo_query = {

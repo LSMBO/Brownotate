@@ -33,7 +33,7 @@ def stop_process(run_id):
 def check_process(run_id):
     process_data = get_process(run_id)
     if not process_data:
-        print(f"Running run not found for {run_id}")
+        print(f"Run {run_id} not found in db.processes")
         query = {'parameters.id': run_id}
         update = {'$set': {'status': 'failed'}}
         update_one('runs', query, update)

@@ -10,7 +10,7 @@ Before setting up your own Brownotate server, you can try a ***demo version*** w
 
 ## Installation
 
-# Clone the Repository
+### Clone the Repository
 
 First, clone the Brownotate repository:
 
@@ -19,11 +19,11 @@ git clone https://github.com/LSMBO/Brownotate.git
 cd Brownotate
 ```
 
-# Install Conda
+### Install Conda
 
 If you do not have Conda installed, follow these steps to install it:
 
-1. ***Download Anaconda***:
+1. **Download Anaconda**:
 
 ```
 wget https://repo.anaconda.com/archive/Anaconda3-2024.06-1-Linux-x86_64.sh
@@ -37,13 +37,13 @@ Follow the instructions to complete the installation:
 -Choose the default installation location
 -Confirm updating your shell profile to initialize Conda automatically
 
-2. ***Initialize Conda***:
+2. **Initialize Conda**:
 
 ```
 conda init
 ```
 
-# Create and Activate Conda Environments
+### Create and Activate Conda Environments
 
 Create and activate the required Conda environments:
 
@@ -61,44 +61,48 @@ cd /path/to/Brownotate
 conda env create -f environment_sra_download.yml
 ```
 
-# Configure MongoDB
+### Configure MongoDB
 
-1. ***Download MongoDB Community Server:*** Go to [MongoDB Community Download](https://www.mongodb.com/try/download/community), select:
+1. **Download MongoDB Community Server:** 
 
--**Version**: 7.0.14 (current)
--**Platform**: Ubuntu 22.04 x64
--**Package**: Server
+Go to [MongoDB Community Download](https://www.mongodb.com/try/download/community), select:
 
-Click on ***Download***.
+- **Version**: 7.0.14 (current)
+- **Platform**: Ubuntu 22.04 x64
+- **Package**: Server
 
-2. ***Install MongoDB:***
+Click on **Download**.
+
+2. **Install MongoDB:**
 
 ```
 sudo dpkg -i mongodb-org-server_7.0.14_amd64.deb
 ```
 
-3. ***Start MongoDB:***
+3. **Start MongoDB:**
 
 ```
 sudo systemctl start mongod
 sudo systemctl status mongod
 ```
 
-4. ***Download MongoDB Shell:*** Go to [MongoDB Shell Download](https://www.mongodb.com/try/download/shell), select:
+4. **Download MongoDB Shell:** 
+
+Go to [MongoDB Shell Download](https://www.mongodb.com/try/download/shell), select:
 
 -**Version:** 2.3.0
 -**Platform:** Debian (10+) / Ubuntu (18.04+) x64
 -**Package:** deb
 
-Click on ***Download***.
+Click on **Download**.
 
-5. ***Install MongoDB Shell:***
+5. **Install MongoDB Shell:**
 
 ```
 sudo dpkg -i mongodb-mongosh_2.3.0_amd64.deb
 ```
 
-6. ***Configure MongoDB:***
+6. **Configure MongoDB:**
 
 ```
 mongosh
@@ -109,12 +113,11 @@ db.createCollection("runs")
 db.createCollection("processes")
 ```
 
-# Configure `config.json`
+### Configure `config.json`
 
 Edit the `config.json` file located in the root directory of the project:
 
 ```
-json
 {
   "email": "",
   "MONGO_URI": "",
@@ -125,13 +128,13 @@ json
 ```
 
 - **`MONGO_URI`**: This follows the format `mongodb://<ip>:<port>/brownotate-db`. You can find the correct URI by running the `mongosh` command in your terminal. The IP is typically localhost and the port is usually 27017.
--**`BROWNOTATE_PATH`**: This should be the directory where you cloned the Brownotate repository.
--**`BROWNOTATE_ENV_PATH`**: Use the command `conda info --envs` to locate the path to the br Conda environment.
--**`SRA_DOWNLOAD_ENV_PATH`**: Use the command `conda info --envs` to locate the path to the sra-download Conda environment.
+- **`BROWNOTATE_PATH`**: This should be the directory where you cloned the Brownotate repository.
+- **`BROWNOTATE_ENV_PATH`**: Use the command `conda info --envs` to locate the path to the br Conda environment.
+- **`SRA_DOWNLOAD_ENV_PATH`**: Use the command `conda info --envs` to locate the path to the sra-download Conda environment.
 
-# Running Brownotate
+## Running Brownotate
 
-1. ***Web Application:***
+1. **Web Application:**
 
 To set up the Brownotate web application, you need to configure both the client from (https://github.com/LSMBO/brownotate-app) and the backend (https://github.com/LSMBO/brownotate-app).
 
@@ -146,26 +149,8 @@ conda activate br
 gunicorn -w 4 --worker-class eventlet --bind 0.0.0.0:8800 --timeout 2592000 run_flask:app 
 ```
 
-- The IP **0.0.0.0** allows the server to accept requests from any IP address. The port **8800** corresponds to the port on wich the server listens for requests from the cleint. Ensure that the port you choose is the same one configured in the web client's **config.js** file (see example below).
+The IP **0.0.0.0** allows the server to accept requests from any IP address. The port **8800** corresponds to the port on which the server listens for requests from the client.
 
-***Example: ***
-
-You have a server with the public IP address **1.2.3.4**. This server hosts the Brownotate client, the web application will be accessible via the URL **http://1.2.3.4:80** because the client is hosted on an Apache server using port 80 (for more details, see https://github.com/LSMBO/brownotate-app).
-
-You configure the **config.js** file like this:
-
-```
-const CONFIG = {
-  API_BASE_URL: 'http://5.6.7.8:8800'
-};
-export default CONFIG;
-```
-
-This setup means the client will send requests to the server **5.6.7.8** on port **8800**.
-
-On the server **5.6.7.8** where Brownotate backend is installed, you need to launch the Flask application with the gunicorn command with **0.0.0.0:8800**. This will ensure that the server can receive requests from any client on port **8800** (as **0.0.0.0** allows connections from any IP).
-
-NB: It is also possible to host both the Brownotate client and the Brownotate backend on the same server. In this case, you can configure the **brownotate-app/config.js** file with **API_BASE_URL: 'http://localhost:8800'**
 
 2. ***Command-Line Interface:***
 
@@ -227,35 +212,66 @@ Brownotate offers a flexible command-line interface for genome annotation and pr
 **Run in automatic mode for species "Homo sapiens":**
 
 ```
-python /path/to/Brownota/main.py -s "Homo sapiens" -a
+python /path/to/Brownotate/main.py -s "Homo sapiens" -a
 ```
 
 **Run the database search (DBS) for "Homo sapiens" with a specific genome file:**
 
 ```
-python /path/to/Brownota/main.py -s "Homo sapiens" --dbs-only
+python /path/to/Brownotate/main.py -s "Homo sapiens" --dbs-only
 ```
 
 **Run the database search (DBS) for "Mus musculus" by searching for sequencing only, and only Illumina sequencing:**
 
 ```
-python /path/to/Brownota/main.py -s "Mus musculus" --dbs-only --no-genome --no-proteins --only-illumina
+python /path/to/Brownotate/main.py -s "Mus musculus" --dbs-only --no-genome --no-proteins --only-illumina
 ```
 
 **Run for Mus musculus with a custom genome assembly, skipping busco:**
 
 ```
-python /path/to/Brownota/main.py -s "Mus musculus" -g /path/to/mus_musculus_genome.fasta --skip-busco
+python /path/to/Brownotate/main.py -s "Mus musculus" -g /path/to/mus_musculus_genome.fasta --skip-busco
 ```
 
 **Run for Drosophila melanogaster (taxid: 7227) with 2 sequencing datasets from NCBI SRA database:**
 
 ```
-python /path/to/Brownota/main.py -s 7227 -d SRR30623762	-d SRR30623766	
+python /path/to/Brownotate/main.py -s 7227 -d SRR30623762	-d SRR30623766	
 ```
 
 **Resume a previous run:**
 
 ```
-python /path/to/Brownota/main.py --resume run_id
+python /path/to/Brownotate/main.py --resume run_id
+```
+
+
+## Other scripts
+
+- check_species_exists.py
+
+Searches for the species in the UniprotKB Taxonomy database. If it exists, it displays its name and taxID like this "Staphylococcus aureus;1280". If it does not exist it raise an error.
+
+Example:
+```
+python /path/to/Brownotate/check_species_exists.py -s "staphylococcus aureus"
+```
+- database_admin.py
+
+Adds a user to the mongodb database. Works with -email and -password. If the email is already in the database, this changes the password.
+
+Example:
+```
+python /path/to/Brownotate/database_admin.py -email test@email.com -password 48141514
+```
+
+Note: The password is encrypted using bcrypt before being stored in the database for added security.
+
+- clear_working_dir.py
+
+Proposes to delete old run working directories. Data can quickly accumulate, so a bit of tidying up from time to time is not a bad idea. Using input() methods, the script proposes to delete each run one after the other.
+
+Example:
+```
+python /path/to/Brownotate/clear_working_dir.py
 ```

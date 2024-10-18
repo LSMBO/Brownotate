@@ -1,4 +1,5 @@
 from database_search.uniprot import UniprotTaxo
+import sys
 
 def betterData(search_data_res):
     if 'genome' in search_data_res:
@@ -23,16 +24,35 @@ def betterData(search_data_res):
 
 def betterEvidence(evidence, taxo):
     ensembl_evidence_score = -1
-    if evidence["ensembl"]:
+    if evidence["ensembl"] and evidence["ensembl"]["taxonId"]:
         ensembl_evidence = evidence["ensembl"]
         ensembl_evidence_score = getEvidenceScore(ensembl_evidence, taxo)
-    uniprot_proteome_evidence = evidence["uniprot_proteome"]   
-    uniprot_proteome_evidence_score = getEvidenceScore(uniprot_proteome_evidence, taxo)
-    refseq_evidence = evidence["refseq"]
-    refseq_evidence_score = getEvidenceScore(refseq_evidence, taxo)
-    genbank_evidence = evidence["genbank"]
-    genbank_evidence_score = getEvidenceScore(genbank_evidence, taxo)
+    
+    uniprot_proteome_evidence_score = -1
+    if evidence["uniprot_proteome"] and evidence["uniprot_proteome"]["taxonId"]:
+        uniprot_proteome_evidence = evidence["uniprot_proteome"]   
+        uniprot_proteome_evidence_score = getEvidenceScore(uniprot_proteome_evidence, taxo)
+    else:
+        print(f"Warning: uniprot_proteome_evidence = {evidence['uniprot_proteome']}")
+    
+    refseq_evidence_score = -1
+    if evidence["refseq"] and evidence["refseq"]["taxonId"]:
+        refseq_evidence = evidence["refseq"]
+        refseq_evidence_score = getEvidenceScore(refseq_evidence, taxo)
+    else:
+        print(f"Warning: refseq_evidence = {evidence['refseq']}")
+        
+    genbank_evidence_score = -1
+    if evidence["genbank"] and evidence["genbank"]["taxonId"]: 
+        genbank_evidence = evidence["genbank"]
+        genbank_evidence_score = getEvidenceScore(genbank_evidence, taxo)
+    else:
+        print(f"Warning: genbank_evidence = {evidence['genbank']}")
 
+    if (ensembl_evidence_score == -1 and uniprot_proteome_evidence_score == -1 and refseq_evidence_score == -1 and genbank_evidence_score == -1):
+        print("Error: No evidences found. Please try again with custom evidence.")
+        sys.exit(1) 
+        
     best_evidence = None
     best_score = -1
     if ensembl_evidence_score > best_score:

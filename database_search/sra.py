@@ -1,4 +1,4 @@
-import re
+import sys, re
 from Bio import Entrez
 import xmltodict
 from database_search.uniprot import UniprotTaxo
@@ -40,6 +40,8 @@ def getTop10Sra(scientific_name_list, type, max_bases=10**25, illumina_only=Fals
                     continue
                 # Loop through the runs to find the ones with the most bases
                 for run in runs:
+                    if run['platform'] == "BGISEQ": # BGISEQ sequencing datasets do not work very well with Megahit 
+                        continue
                     if (run['total_bases']):
                         total_bases = int(run['total_bases'])
                         if run["library_type"] == "paired":
@@ -118,18 +120,25 @@ def sra_db_search(library_strategy, scientific_name_list=None, accession=None, i
 
     for term in term_list:
         # Search SRA for sequencing data using the given search term
-        search_handle = Entrez.esearch(db="sra",
-                                    term=term,
-                                    sort='relevance',
-                                    idtype="acc",
-                                    retmax=100)
-        record = Entrez.read(search_handle)
+        
+        try:
+            search_handle = Entrez.esearch(db="sra",
+                                        term=term,
+                                        sort='relevance',
+                                        idtype="acc",
+                                        retmax=10000)
+            record = Entrez.read(search_handle)
+                
+            if record["Count"] != '0':
+                combined_record['Count'] += int(record["Count"])
+                combined_record['IdList'].extend(record['IdList'])
+                
+            search_handle.close()
             
-        if record["Count"] != '0':
-            combined_record['Count'] += int(record["Count"])
-            combined_record['IdList'].extend(record['IdList'])
-            
-        search_handle.close()
+        except Exception as e:
+            print("Connection to NCBI servers failed. Please try again later.", file=sys.stderr)
+            print(e, file=sys.stderr)
+            sys.exit(1)
     
     if combined_record["Count"]==0:
         return "Nothing"
@@ -154,10 +163,16 @@ def getRunInfoList(entry_list):
     entry_ids = ','.join(entry_list)
         
     # Query the SRA database for summary information on each entry
-    run_info_handle = Entrez.esummary(db="sra", id=entry_ids)
-    run_info = Entrez.read(run_info_handle)
-    run_info_handle.close()
     
+    try:
+        run_info_handle = Entrez.esummary(db="sra", id=entry_ids)
+        run_info = Entrez.read(run_info_handle)
+        run_info_handle.close()
+    
+    except Exception as e:
+        print("Connection to NCBI servers failed. Please try again later.", file=sys.stderr)
+        sys.exit(1)
+        
     # Return the summary information for each entry as a list
     return run_info
 
@@ -221,5 +236,4 @@ def getSequencing(run_type, accession_list, config):
 # 300,000,000,000 --> 63.8Gb
 # 100,000,000,000 --> 34,4Gb X
 # 50,000,000,000 --> 11.2Go
-
 

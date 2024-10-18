@@ -9,18 +9,20 @@ def displayTime(elapsed_time):
     return f"{int(minutes)}:{int(seconds):02}:{int(milliseconds * 1000):03}"
 
 
-def getProteins(synonyms_scientific_names, taxonomy, search_similar_species):
+def getProteins(synonyms_scientific_names, taxonomy, search_similar_species, config):
+    # ENSEMBL
     start_time = time.time()
     json_ensembl = {}
     if not isProkaryotaOrArchaea(taxonomy):
         i = 0
         while not json_ensembl and i < len(synonyms_scientific_names):
-            json_ensembl = ensembl.getBetterEnsembl(synonyms_scientific_names[i], taxonomy, 'pep', False)
+            json_ensembl = ensembl.getBetterEnsembl(synonyms_scientific_names[i], taxonomy, 'pep', False, config)
             i += 1
         if not json_ensembl and search_similar_species:
-            json_ensembl = ensembl.getBetterEnsembl(synonyms_scientific_names[0], taxonomy, 'pep', True)
+            json_ensembl = ensembl.getBetterEnsembl(synonyms_scientific_names[0], taxonomy, 'pep', True, config)
         print(f"Ensembl proteins search completed ! A protein dataset has been found for {json_ensembl['scientific_name']}. Elapsed time : {displayTime(time.time() - start_time)}")
 
+    # Uniprot
     start_time = time.time()
     json_uniprot_ok = False
     i = 0
@@ -36,23 +38,30 @@ def getProteins(synonyms_scientific_names, taxonomy, search_similar_species):
         uniprot_taxo = UniprotTaxo(synonyms_scientific_names[0])
         json_uniprot_proteome = uniprot_taxo.fetch_related_proteome()
     print(f"Uniprot proteome search completed ! A protein dataset has been found for {json_uniprot_proteome['scientific_name']}. Elapsed time : {displayTime(time.time() - start_time)}")	
+    
+    # REFSEQ
     json_refseq = {}
+    json_genbank = {}
     start_time = time.time()
     i = 0
     while not json_refseq and i < len(synonyms_scientific_names):
-        json_refseq = ncbi.getBetterNCBI(synonyms_scientific_names[i], taxonomy, 'refseq', 'proteins', False)
+        json_refseq = ncbi.getBetterNCBI(synonyms_scientific_names[i], taxonomy, 'refseq', 'proteins', False, config)
         i += 1
+    if json_refseq and json_refseq['scientific_name'] in synonyms_scientific_names:
+        json_genbank = ncbi.fetchAssemblyDetails(json_refseq['entrez_id'], 'protein', 'genbank')
     if not json_refseq and search_similar_species:
-        json_refseq = ncbi.getBetterNCBI(synonyms_scientific_names[0], taxonomy, 'refseq', 'proteins', True)
+        json_refseq = ncbi.getBetterNCBI(synonyms_scientific_names[0], taxonomy, 'refseq', 'proteins', True, config)
     print(f"RefSeq proteins search completed ! A protein dataset has been found for {json_refseq['scientific_name']}. Elapsed time : {displayTime(time.time() - start_time)}")	
-    json_genbank = {}
+
+    # GENBANK
     start_time = time.time()
     i = 0  
-    while not json_genbank and i < len(synonyms_scientific_names):
-        json_genbank = ncbi.getBetterNCBI(synonyms_scientific_names[i], taxonomy, 'genbank', 'proteins', False)
-        i += 1
-    if not json_genbank and search_similar_species:
-        json_genbank = ncbi.getBetterNCBI(synonyms_scientific_names[0], taxonomy, 'genbank', 'proteins', True)
+    if not json_genbank:
+        while not json_genbank and i < len(synonyms_scientific_names):
+            json_genbank = ncbi.getBetterNCBI(synonyms_scientific_names[i], taxonomy, 'genbank', 'proteins', False, config)
+            i += 1
+        if not json_genbank and search_similar_species:
+            json_genbank = ncbi.getBetterNCBI(synonyms_scientific_names[0], taxonomy, 'genbank', 'proteins', True, config)
     print(f"Genbank proteins search completed ! A protein dataset has been found for {json_genbank['scientific_name']}. Elapsed time : {displayTime(time.time() - start_time)}")
     return {
         "ensembl": json_ensembl,

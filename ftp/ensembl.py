@@ -61,3 +61,24 @@ def getDataFromFTP(type, scientific_names):
 			break
 	ftp.quit()
 	return {}
+
+def getAssemblyFTPrepository(url, scientific_name):
+	ftp = connect_ftp("ftp.ensembl.org")
+	url = '/'.join(url.split('/')[:-2]) + '/dna'
+	cwd_ftp(ftp, url)
+	files = set(ftp.nlst())
+	end_of_file = ["dna.primary_assembly.fa.gz", "dna.toplevel.fa.gz"]
+	for f in files:
+		for end in end_of_file:
+			if f.endswith(end):
+				url = ftp.pwd() + '/' + f
+				quality = "primary assembly" if end == "dna.primary_assembly.fa.gz" else "toplevel"
+				return {
+					"url": url,
+					"data_type": "genome",
+					"quality": quality,
+					"ftp": "ftp.ensembl.org",
+					"database": "ensembl",
+					"scientific_name": scientific_name
+				}
+	return {}

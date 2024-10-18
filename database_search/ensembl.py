@@ -2,10 +2,10 @@ from ftp import ensembl
 from database_search.uniprot import UniprotTaxo
 from . import ncbi
 
-def getBetterEnsembl(scientific_name, taxonomy, data_type, search_similar_species=False):
+def getBetterEnsembl(scientific_name, taxonomy, data_type, search_similar_species=False, config=None):
     results = ensembl.getDataFromFTP(data_type, [scientific_name])
     if results:
-        taxonId = ncbi.getTaxonID(results["scientific_name"])
+        taxonId = ncbi.getTaxonID(results["scientific_name"], config)
         results["taxonId"] = taxonId
         return results
     if search_similar_species == False:
@@ -37,7 +37,7 @@ def getBetterEnsembl(scientific_name, taxonomy, data_type, search_similar_specie
         if results:
             taxonId = UniprotTaxo.fetch_taxon_id(results["scientific_name"])
             if not taxonId:
-                taxonId = ncbi.getTaxonID(results["scientific_name"])
+                taxonId = ncbi.getTaxonID(results["scientific_name"], config)
             results["taxonId"] = taxonId
             return results
     return {}

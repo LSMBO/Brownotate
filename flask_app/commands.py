@@ -11,8 +11,8 @@ env['PATH'] = os.path.join(config['BROWNOTATE_ENV_PATH'], 'bin') + os.pathsep + 
 def build_check_species_exists_command(species):
     return ["python", f"{config['BROWNOTATE_PATH']}/check_species_exists.py", "-s", species]
         
-def build_dbsearch_command(species, current_datetime):
-    arguments = ['-s', species, '--run-id', f'DBS-{current_datetime}', '--dbs-only', '-od', f'output_runs/{current_datetime}']
+def build_dbsearch_command(species, run_id):
+    arguments = ['-s', species, '--run-id', run_id, '--dbs-only', '-od', f'output_runs/{run_id}']
     return ["python", f"{config['BROWNOTATE_PATH']}/main.py"] + arguments
 
 def build_brownotate_resume_command(run_id):
@@ -120,6 +120,7 @@ def run_command(command, run_id):
         if process.returncode != 0:
             print(f"Command failed with returncode {process.returncode}")
             print(f"Error output: {stderr}")
+        remove_process(run_id)
         return stdout, stderr
     except subprocess.CalledProcessError as e:
         print(f"Command failed: {e.cmd}")

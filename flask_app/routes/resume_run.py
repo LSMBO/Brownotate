@@ -17,7 +17,7 @@ def get_output_run_dir(stdout):
 	return output_run_dir_match.group(1)
 
 def run_failed(stdout, stderr, run_id, message):
-	query = {'parameters.id': int(run_id)}
+	query = {'parameters.id': run_id}
 	update = {'$set': {'status': 'failed', 'stdout': stdout, 'stderr' : stderr}}
 	update_one('runs', query, update)
 	socketio.emit('runs_updated', {'run_id': run_id, 'status': 'failed', 'stdout': stdout, 'stderr': stderr})
@@ -26,11 +26,11 @@ def run_failed(stdout, stderr, run_id, message):
 @resume_run_bp.route('/resume_run', methods=['POST'])
 def resume_run():
 	data = request.json
-	run_id = data.get('id')
+	run_id = data.get('id') # int
 	if not run_id:
 		return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
-
-	query = {'parameters.id': int(run_id)}
+ 
+	query = {'parameters.id': run_id}
 	
 	# Find the working_dir_id
 	result = find_one('runs', query)
@@ -41,7 +41,13 @@ def resume_run():
 	if not working_dir_id:
 		return jsonify({'status': 'error', 'message': 'working_dir_id not found'}), 400
 
-	update = {'$set': {'status': 'running', 'stderr' : '', 'stdout' : ''}}
+	update = {
+    	'$set': {
+        	'status': 'running', 
+         	'stderr' : '', 
+          	'stdout' : ''
+        }
+    }
 	update_one('runs', query, update)
 	socketio.emit('runs_updated', {'run_id': run_id, 'status': 'running'})
 	command = build_brownotate_resume_command(str(working_dir_id))
@@ -49,8 +55,8 @@ def resume_run():
 
 	if stderr:
 		return run_failed(stdout, stderr, run_id, "Command failed")
+	
 	output_run_dir = get_output_run_dir(stdout)
-
 	if not output_run_dir:
 		return run_failed(stdout, stderr, run_id, 'Output directory not found')
 	
@@ -58,7 +64,8 @@ def resume_run():
 		status = 'incomplete'
 	else:
 		status = 'completed'
-	query = {'parameters.id': int(run_id)}
+
+	query = {'parameters.id': run_id}
 	update = {'$set': {'status': status, 'results_path': output_run_dir, 'stdout': stdout, 'stderr' : stderr}}
 	update_one('runs', query, update)
 	socketio.emit('runs_updated', {'run_id': run_id, 'status': status})

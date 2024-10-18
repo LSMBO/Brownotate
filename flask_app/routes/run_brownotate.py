@@ -6,11 +6,12 @@ from flask_app.extensions import socketio
 
 run_brownotate_bp = Blueprint('run_brownotate_bp', __name__)
 
-def get_output_run_dir(stdout):
-	output_run_dir_match = re.search(r"Your protein annotation is available in (.+?)\. Thank you for using Brownotate", stdout)
-	if not output_run_dir_match:
-		return None
-	return output_run_dir_match.group(1)
+def run_failed(stdout, stderr, run_id, message):
+	query = {'parameters.id': int(run_id)}
+	update = {'$set': {'status': 'failed', 'stdout': stdout, 'stderr' : stderr}}
+	update_one('runs', query, update)
+	socketio.emit('runs_updated', {'run_id': run_id, 'status': 'failed', 'stdout': stdout, 'stderr': stderr})
+	return jsonify({'status': 'error', 'message': message, 'stderr': stderr, 'stdout': stdout}), 500	
 
 @run_brownotate_bp.route('/run_brownotate', methods=['POST'])
 def run_brownotate():
@@ -35,23 +36,26 @@ def run_brownotate():
 		}
 	}
 	update_one('runs', query, update)
-	socketio.emit('run_started', {'run_id': run_id, 'status': 'running'})
+	socketio.emit('runs_updated', {'run_id': run_id, 'status': 'running'})
 	command = build_brownotate_command(parameters, current_datetime)
 	stdout, stderr = run_command(command, run_id)
- 
+	print(f"Execution completed")
+	print(f"stdout: {stdout}\n")
+	print(f"stderr: {stderr}\n")
 	if stderr:
-		query = {'parameters.id': parameters['id']}
-		update = {'$set': {'status': 'failed', 'stdout': stdout, 'stderr' : stderr}}
-		update_one('runs', query, update)
-		socketio.emit('runs_updated', {'run_id': run_id, 'status': 'failed', 'stdout': stdout, 'stderr': stderr})
-		return jsonify({'status': 'error', 'message': 'Command failed', 'stderr': stderr, 'stdout': stdout}), 500
+		return run_failed(stdout, stderr, parameters['id'], "Command failed")
 
-	output_run_dir = get_output_run_dir(stdout)
+	output_run_dir = f"output_runs/{current_datetime}"
 	if not output_run_dir:
-		return jsonify({'status': 'error', 'message': 'Nothing found for get_output_run_dir_match()'}), 400
+		return run_failed(stdout, stderr, parameters['id'], 'Output directory not found')
 	
+	if 'Error : Number of genes and rawgenes is too low' in stdout:
+		status = 'incomplete'
+	else:
+		status = 'completed'
+  
 	query = {'parameters.id': parameters['id']}
-	update = {'$set': {'status': 'completed', 'results_path': output_run_dir, 'stdout': stdout, 'stderr' : stderr}}
+	update = {'$set': {'status': status, 'results_path': output_run_dir, 'stdout': stdout, 'stderr' : stderr}}
 	update_one('runs', query, update)
-	socketio.emit('runs_updated', {'run_id': parameters['id'], 'status': 'completed'})
+	socketio.emit('runs_updated', {'run_id': parameters['id'], 'status': status})
 	return jsonify({'status': 'success', 'message': 'Script executed and run updated successfully', 'stdout': stdout, 'stderr': stderr}), 200
