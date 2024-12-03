@@ -26,13 +26,11 @@ def taxo(species):
                 return result 
     return None
 
-def downloadFasta(all_lineage, index, exclude):
+def downloadFasta(all_lineage, index, exclude, file_name):
     if (index>0):
         exclude.append(all_lineage[index-1]["taxonId"])
         
     target_taxonId = all_lineage[index]["taxonId"]
-    target_scientific_name = all_lineage[index]["scientificName"]
-    target_rank = all_lineage[index]["rank"].replace(" ", "_")
     
     url = f"https://rest.uniprot.org/uniprotkb/search?query=(taxonomy_id:{target_taxonId})"
     
@@ -40,10 +38,6 @@ def downloadFasta(all_lineage, index, exclude):
         url = url + f"%20NOT%20(taxonomy_id:{ex})"
     
     url = url + f"&size=500&format=fasta"
-
-    file_name = f"database/{target_taxonId}_{target_scientific_name}_{target_rank}.fasta"
-    file_name = file_name.replace('(', '')
-    file_name = file_name.replace(')', '')
     
     if (os.path.exists(file_name)):
         os.remove(file_name)

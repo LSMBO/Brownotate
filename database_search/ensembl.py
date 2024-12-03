@@ -21,7 +21,8 @@ def getBetterEnsembl(scientific_name, taxonomy, data_type, search_similar_specie
                     'quality': '', 
                     'ftp': 'ftp.ensembl.org', 
                     'database': 'ensembl', 
-                    'scientific_name': 'Drosophila melanogaster'
+                    'scientific_name': 'Drosophila melanogaster',
+                    'taxoId': 7227
                 }
             else:
                 return {

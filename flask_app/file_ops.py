@@ -28,7 +28,6 @@ def download_zip(rep_path):
     try:
         if not os.path.isdir(rep_path):
             raise FileNotFoundError("Directory not found")
-        
         zip_filename = f"{os.path.dirname(rep_path)}/{os.path.basename(rep_path)}.zip"
         with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for root, dirs, files in os.walk(rep_path):

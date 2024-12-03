@@ -238,13 +238,26 @@ if not args.database and "download_db_complete" not in STATE:
         taxonId = FULL_LINEAGE[i]["taxonId"]
         rank = FULL_LINEAGE[i]["rank"]
         logger.info(f"Try to download the uniprot database for {scientificName} ({rank}).")
-        uniprot_fasta_filename = uniprot.downloadFasta(FULL_LINEAGE, i, EXCLUDE_TAXO) # Download all UniprotKB protein for the taxo
-        logger.info(f"Completed for {scientificName} ({rank}).")
+        
+        try:
+            file_name = f"database/{taxonId}_{scientificName}_{rank.replace(' ' , '_')}.fasta"
+            file_name = file_name.replace('(', '')
+            file_name = file_name.replace(')', '')
+    
+            download_fasta_output = uniprot.downloadFasta(FULL_LINEAGE, i, EXCLUDE_TAXO, file_name) # Download all UniprotKB protein for the taxo
+            logger.info(f"Completed for {scientificName} ({rank}).")
+            
+        except Exception as e:
+            logger.warning(f"Warning: Download failed for {scientificName} ({rank}). No proteins found.")
+            lastStep = True
+            
         if (rank in MAX_RANK or taxonId == MAX_TAXO):
             lastStep = True
-        if (uniprot_fasta_filename != "NOPROT"):
-            DATABASES.append(uniprot_fasta_filename) 
+            
+        if (download_fasta_output != "NOPROT"):
+            DATABASES.append(file_name) 
             STATE["download_db_in_progress"] = DATABASES
+            
         STATE["download_db_index"] = i+1
         makeJson("state.json", STATE)
         

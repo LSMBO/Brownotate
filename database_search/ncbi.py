@@ -59,7 +59,6 @@ def exploreDatabase(data_type, scientific_names, bank):
         }
         
         url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch"
-        print(params)
         try:
             response = requests.get(url, headers=headers, params=params)
             response.raise_for_status()
