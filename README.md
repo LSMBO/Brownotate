@@ -252,14 +252,6 @@ python /path/to/Brownotate/main.py --resume run_id
 
 ## Other scripts
 
-- check_species_exists.py
-
-Searches for the species in the UniprotKB Taxonomy database. If it exists, it displays its name and taxID like this "Staphylococcus aureus;1280". If it does not exist it raise an error.
-
-Example:
-```
-python /path/to/Brownotate/check_species_exists.py -s "staphylococcus aureus"
-```
 - database_admin.py
 
 Adds a user to the mongodb database. Works with -email and -password. If the email is already in the database, this changes the password.
