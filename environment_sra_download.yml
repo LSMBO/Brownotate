@@ -1,0 +1,8 @@
+name: sra-download
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.7
+  - sra-tools=3.1.1

@@ -71,9 +71,7 @@ parser.add_argument('--skip-filtering', action='store_true', help='Skip the two 
 
 # Annotation
 parser.add_argument('-g', '--genome', help='File path to the input genome assembly')
-parser.add_argument('-gu', '--genome-url', help='Assembly download URL (from Ensembl or NCBI FTP)')
 parser.add_argument('-e', '--evidence', help='File path to the protein evidence database for annotation')
-parser.add_argument('-eu', '--evidence-url', help='Evdence download URL (Uniprot rest url or Ensembl/NCBI FTP)')
 parser.add_argument('--remove-included-sequences', action='store_true', help='Consider two protein sequences as redundant if one sequence is strictly included in the other')
 parser.add_argument('--skip-remove-redundancy', action='store_true', help='Skip the step that removes redundancy in the protein sequences')
 parser.add_argument('-ml', '--min-length', type=int, help="Augustus predicted sequences with a length below this threshold are removed from the annotation.")
@@ -122,7 +120,7 @@ if not args.species and not args.resume:
 
 # --dbs-only
 if args.dbs_only:
-    for arg in ['auto', 'dna_sra', 'dna_file', 'skip_fastp', 'skip_bowtie2', 'skip_filtering', 'genome', 'genome_url',
+    for arg in ['auto', 'dna_sra', 'dna_file', 'skip_fastp', 'skip_bowtie2', 'skip_filtering', 'genome',
                 'evidence', 'skip_busco_assembly', 'skip_busco_annotation', 'skip_busco', 'remove_included_sequences',
                 'skip_remove_redundancy', 'min_length', 'skip_brownaming', 'brownaming_maxrank', 'brownaming_maxtaxo',
                 'brownaming_exclude', 'brownaming_db']:
@@ -131,7 +129,7 @@ if args.dbs_only:
                
 # --auto
 if args.auto:
-    for arg in ['dna_sra', 'dna_file', 'genome', 'genome_url']:
+    for arg in ['dna_sra', 'dna_file', 'genome']:
         if getattr(args, arg):
             setattr(args, arg, None)
             warnings.warn(f"The parameter --{arg.replace('_', '-')} will be ignored because --auto is activated.", UserWarning)
@@ -164,38 +162,23 @@ for arg in ['dna_sra', 'dna_file']:
             raise ValueError(f"\nThe parameters --{arg} and --illumina-only cannot be used together.")
         if args.genome:
             raise ValueError(f"\nThe parameters --{arg} and --genome cannot be used together.")
-        if args.genome_url:
-            raise ValueError(f"\nThe parameters --{arg} and --genome-url cannot be used together.")
+
 # --sra-bl
 if args.sra_bl:
     if args.genome:
         raise ValueError(f"\nThe parameters --sra-bl and --genome cannot be used together.")
-    if args.genome_url:
-        raise ValueError(f"\nThe parameters --sra-bl and --genome-url cannot be used together.")
     
 # --dbs-only
 if args.illumina_only:
     if args.genome:
         raise ValueError(f"\nThe parameters --illumina-only and --genome cannot be used together.")
-    if args.genome_url:
-        raise ValueError(f"\nThe parameters --illumina-only and --genome-url cannot be used together.")
-    
+
 # --genome
 if args.genome:
-    for arg in ['skip_fastp', 'skip_bowtie2', 'skip_filtering', 'genome_url']:
+    for arg in ['skip_fastp', 'skip_bowtie2', 'skip_filtering']:
         if getattr(args, arg):
             raise ValueError(f"\nThe parameters --genome and --{arg.replace('_', '-')} cannot be used together.")
         
-# --genome-url
-if args.genome_url:
-    for arg in ['skip_fastp', 'skip_bowtie2', 'skip_filtering', 'genome']:
-        if getattr(args, arg):
-            raise ValueError(f"\nThe parameters --genome_url and --{arg.replace('_', '-')} cannot be used together.")
-
-# --evidence
-if args.evidence and args.evidence_url:
-    raise ValueError(f"\nThe parameters --evidence and --evidence-url cannot be used together.")
-    
 # --skip-remove-redundancy
 if args.skip_remove_redundancy and args.remove_included_sequences:
     raise ValueError(f"\nThe parameters --skip-remove-redundancy and --remove-included-sequences cannot be used together.")
@@ -301,7 +284,7 @@ try:
     taxo_uniprot = database_search.UniprotTaxo(args.species)
 except ValueError as e:
     raise ValueError(f"\nTaxonomy data not found: {e}")
-TAXON_ID = taxo_uniprot.get_tax_id()
+TAXON_ID = taxo_uniprot.get_taxid()
 SCIENTIFIC_NAME = taxo_uniprot.get_scientific_name()
   
 if args.resume:    
@@ -325,6 +308,15 @@ else:
     # Add the parameters in this working directory in param.json
     makeJson("param.json", vars(args))
     makeJson(f"taxo.json", taxo_uniprot.get_taxonomy())   
+
+    if args.genome:
+        os.makedirs('genome', exist_ok=True)
+        input_genome_file = shutil.copy(args.genome, os.path.abspath('genome'))
+        args.genome = input_genome_file
+    if args.evidence:    
+        os.makedirs('evidence', exist_ok=True)
+        input_evidence_file = shutil.copy(args.evidence, os.path.abspath('evidence'))
+        args.evidence = input_evidence_file
 
 
 # Path of the output directory
@@ -372,48 +364,55 @@ else:
     logger.info(f'Brownotate start')
 
 if args.dbs_only:
-    pipelines.run_database_search(STATE, database_search, logger, dbs_only=True, no_seq=args.no_seq, no_genome=args.no_genome, no_prots=args.no_prots, search_similar_species=True)
+    print("Database search is temporarily unavailable. Please try again later.")
+    logger.info("Database search is temporarily unavailable. Exiting.")
+    exit()
+    # pipelines.run_database_search(STATE, database_search, logger, dbs_only=True, no_seq=args.no_seq, no_genome=args.no_genome, no_prots=args.no_prots, search_similar_species=True)
 
 if args.auto:
     
+    print("Auto mode is temporarily unavailable. Please try again later.")
+    logger.info("Auto mode is temporarily unavailable. Exiting.")
+    exit()
+    
     # 1. Search data --> Database_Search.json
-    if not os.path.exists('Database_Search.json'):
-        data = pipelines.run_database_search(STATE, database_search, logger, no_seq=args.no_seq, no_genome=args.no_genome, no_prots=True, search_similar_species=False)
-    else:
-        with open('Database_Search.json', 'r') as file:    
-            data = json.load(file)
+    # if not os.path.exists('Database_Search.json'):
+    #     data = pipelines.run_database_search(STATE, database_search, logger, no_seq=args.no_seq, no_genome=args.no_genome, no_prots=True, search_similar_species=False)
+    # else:
+    #     with open('Database_Search.json', 'r') as file:    
+    #         data = json.load(file)
     
     # 2. Select the better data --> Better_data.json
-    if not os.path.exists('Better_data.json'):
-        better_data = pipelines.run_better_data(data, database_search, logger)
-        if better_data["data_type"] == "dnaseq":
-            STATE["dnaseq_entries"] = better_data
-        else:
-            STATE["genome_entry"] = better_data    
-    else:
-        with open('Better_data.json', 'r') as file:
-            better_data = json.load(file)
-    makeJson("state.json", STATE)
+    # if not os.path.exists('Better_data.json'):
+    #     better_data = pipelines.run_better_data(data, database_search, logger)
+    #     if better_data["data_type"] == "dnaseq":
+    #         STATE["dnaseq_entries"] = better_data
+    #     else:
+    #         STATE["genome_entry"] = better_data    
+    # else:
+    #     with open('Better_data.json', 'r') as file:
+    #         better_data = json.load(file)
+    # makeJson("state.json", STATE)
     
     # 3. Download the better data
-    if better_data["data_type"] == "dnaseq":
-        if "dnaseq_files" not in STATE:
-            logger.info(f"Download the sequencing datasets ...")
-            downloaded_dnaseq_files = pipelines.run_download(better_data, download)
-            STATE["dnaseq_files"] = downloaded_dnaseq_files
-            logger.info(f"The sequencing datasets have been successfully downloaded.")
-        # Skip this step for the resumed run
-        else:
-            logger.info(f"The sequencing have already been downloaded.")
+    # if better_data["data_type"] == "dnaseq":
+    #     if "dnaseq_files" not in STATE:
+    #         logger.info(f"Download the sequencing datasets ...")
+    #         downloaded_dnaseq_files = pipelines.run_download(better_data, download)
+    #         STATE["dnaseq_files"] = downloaded_dnaseq_files
+    #         logger.info(f"The sequencing datasets have been successfully downloaded.")
+    #     # Skip this step for the resumed run
+    #     else:
+    #         logger.info(f"The sequencing have already been downloaded.")
     
-    elif better_data["data_type"] == "genome":
-        if "genome_file" not in STATE:
-            logger.info(f"Download the genome file ...")
-            genome_entry = pipelines.run_download(better_data, download)
-            STATE["genome_entry"] = genome_entry
-            STATE["genome_file"] = genome_entry["file_name"]
-            logger.info(f"The genome file have been successfully downloaded.")        
-    makeJson("state.json", STATE)
+    # elif better_data["data_type"] == "genome":
+    #     if "genome_file" not in STATE:
+    #         logger.info(f"Download the genome file ...")
+    #         genome_entry = pipelines.run_download(better_data, download)
+    #         STATE["genome_entry"] = genome_entry
+    #         STATE["genome_file"] = genome_entry["file_name"]
+    #         logger.info(f"The genome file have been successfully downloaded.")        
+    # makeJson("state.json", STATE)
     
 # If the user provides custom inputs
 else:
@@ -447,10 +446,6 @@ else:
     if args.dna_file:
         STATE["dnaseq_files"] = input_dnaseq_files
 
-    # If the genome download url has been provided
-    if args.genome_url:
-        genome_file = pipelines.run_download(args.genome_url, download) 
-        STATE['genome_file'] = genome_file['file_name']
     # If the genome file has been provided 
     if args.genome:
         STATE["genome_file"] = input_genome_file
@@ -526,27 +521,27 @@ if annotation_tool=="prokka":
 if annotation_tool=="augustus":
     logger.info(f"{SCIENTIFIC_NAME} is an eukaryote species, the Augustus pipeline will be used.")
     # Searching for evidence file for augustus annotation 
-    
-    # If the evidence download url has been provided
-    if args.evidence_url:
-        STATE["evidence_file"] = pipelines.run_download(args.evidence_url, download)
-    
+
     # If the evidence file have been provided
     if args.evidence: 
         STATE["evidence_file"] = input_evidence_file
     
     else: # The evidence file have to be searched and downloaded
-        if "evidence_search" in STATE:
-            logger.info(f"The evidence data has already been found.")
-        else:
-            logger.info(f"Search for the different evidence annotations...")
-            STATE["evidence_search"] = pipelines.run_get_evidence(STATE, database_search)
+        print("Evidence search is temporarily unavailable. Please try again later.")
+        logger.info("Evidence search is temporarily unavailable. Exiting.")
+        exit()
+        
+        # if "evidence_search" in STATE:
+        #     logger.info(f"The evidence data has already been found.")
+        # else:
+        #     logger.info(f"Search for the different evidence annotations...")
+        #     STATE["evidence_search"] = pipelines.run_get_evidence(STATE, database_search)
 
-        if "evidence_file" in STATE:
-            logger.info(f"The evidence file has already been downloaded.")
-        else:           
-            logger.info(f"Download the evidence file...")
-            STATE["evidence_file"] = pipelines.run_download(STATE["evidence_search"], download)["file_name"]
+        # if "evidence_file" in STATE:
+        #     logger.info(f"The evidence file has already been downloaded.")
+        # else:           
+        #     logger.info(f"Download the evidence file...")
+        #     STATE["evidence_file"] = pipelines.run_download(STATE["evidence_search"], download)["file_name"]
             
              
     makeJson("state.json", STATE)
@@ -654,7 +649,12 @@ if not args.skip_brownaming:
         STATE["annotation_brownaming"] = pipelines.run_brownaming(STATE, annotation)
         makeJson("state.json", STATE)
         logger.info(f"Brownaming annotation has been successfully computed.")
-
+else:
+    if "annotation_red" in STATE:
+        shutil.copy(STATE["annotation_red"], OUTPUT_FASTA_FILEPATH)
+    else:
+        shutil.copy(STATE["annotation"], OUTPUT_FASTA_FILEPATH)
+        
 # Busco completeness evaluation
 if not args.skip_busco_annotation and not args.skip_busco:
     logger.info(f"Evaluate the completeness of the annotation using Busco.")

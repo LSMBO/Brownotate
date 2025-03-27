@@ -67,9 +67,11 @@ conda env create -f environment_sra_download.yml
 
 Go to [MongoDB Community Download](https://www.mongodb.com/try/download/community), select:
 
-- **Version**: 7.0.14 (current)
-- **Platform**: Ubuntu 22.04 x64
-- **Package**: Server
+- **Version**: 7.0.14 (current)  
+- **Platform**: Ubuntu 22.04 x64  
+- **Package**: Server  
+
+*Or whichever matches your configuration.*
 
 Click on **Download**.
 
@@ -93,6 +95,8 @@ Go to [MongoDB Shell Download](https://www.mongodb.com/try/download/shell), sele
 -**Version:** 2.3.0
 -**Platform:** Debian (10+) / Ubuntu (18.04+) x64
 -**Package:** deb
+
+*Or whichever matches your configuration.*
 
 Click on **Download**.
 
@@ -136,8 +140,8 @@ Edit the `config.json` file located in the root directory of the project:
 
 1. **Web Application:**
 
-To set up the Brownotate web application, you need to configure both the client from (https://github.com/LSMBO/brownotate-app) and the backend (https://github.com/LSMBO/brownotate-app).
-
+To set up the Brownotate web application, you need to configure both the client from (https://github.com/LSMBO/brownotate-app) and the backend (https://github.com/LSMBO/Brownotate).
+Brownotate
 The web client for Brownotate is hosted in a separate repository. Follow the instructions in the Brownotate web client repository (https://github.com/LSMBO/brownotate-app) to install and configure the client. The client is responsible for interacting with the user and sending requests to the Brownotate backend.
 
 Once the client is set up, you need to launch the Brownotate backend, which is a Flask-based server that handles requests from the client and executes commands. This backend is served using Gunicorn, a Python WSGI HTTP server optimized for handling concurrent connections. It has already been installed in the br Conda environment.

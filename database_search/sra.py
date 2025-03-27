@@ -1,29 +1,43 @@
-import sys, re
+import sys, re, time
 from Bio import Entrez
 import xmltodict
+import requests
 from database_search.uniprot import UniprotTaxo
 from . import ncbi
 
 CONFIG = None
 
-def getBetterSra(synonyms_scientific_names, taxonomy, type, illumina_only, sra_blacklist, config, search_similar_species=False):
+def getBetterSra(synonyms_scientific_names, taxonomy, sequencing_type, config, illumina_only, sra_blacklist):
     global CONFIG
     CONFIG = config
-    # Get top 10 sequencing runs for the given scientific name
-    top10 = getTop10Sra(synonyms_scientific_names, type, illumina_only=illumina_only, sra_blacklist=sra_blacklist)
-    if top10:
-        return top10
-    if search_similar_species:
-        lineage_taxo_ids = [object['taxonId'] for object in reversed(taxonomy.get("lineage"))]
-        exclude_ids = []
-        for taxo_id in lineage_taxo_ids:
-            children_names = UniprotTaxo.fetch_children(taxo_id, exclude_ids, "scientificName")
-            top10 = getTop10Sra(children_names, type, illumina_only=illumina_only, sra_blacklist=sra_blacklist)
+    top10 = {}
+    exclude_ids = []
+    
+    is_group = False
+    if taxonomy['lineage'][0]['rank'] not in ['species', 'subspecies', 'strain']:
+        is_group = True
+        
+    for taxo in taxonomy['lineage']:
+        if taxo['rank'] == 'genus':
+            is_group = True
+        
+        if is_group:
+            children = get_children(taxo['taxonId'], exclude_ids)
+            children_taxids, children_scientific_names = zip(*children) if children else ([], [])
+            exclude_ids += children_taxids
+            top10 = getTop10Sra(children_scientific_names, sequencing_type, illumina_only=illumina_only, sra_blacklist=sra_blacklist)
+            if top10:
+                return top10            
+        else:
+            top10 = getTop10Sra(synonyms_scientific_names, sequencing_type, illumina_only=illumina_only, sra_blacklist=sra_blacklist)
             if top10:
                 return top10
+        
+    return top10
+
       
-def getTop10Sra(scientific_name_list, type, max_bases=10**25, illumina_only=False, sra_blacklist=[]):
-    record = sra_db_search(type, scientific_name_list, illumina_only=illumina_only, sra_blacklist=sra_blacklist)
+def getTop10Sra(scientific_name_list, sequencing_type, max_bases=10**25, illumina_only=False, sra_blacklist=[]):
+    record = sra_db_search(sequencing_type, scientific_name_list, illumina_only=illumina_only, sra_blacklist=sra_blacklist)
     # Check if any results were found
     if "IdList" in record:        
         best_entry_ids = record["IdList"]
@@ -72,11 +86,10 @@ def getTop10Sra(scientific_name_list, type, max_bases=10**25, illumina_only=Fals
             # Add the rank and taxonID attribute to each entry
             for i in range(len(top_entries)):
                 top_entries[i]['rank'] = i + 1
-                top_entries[i]['taxonId'] = ncbi.getTaxonID(top_entries[i]['scientific_name'])
             # Convert the result list to a JSON object and return it
             for entry in top_entries:
                 return {
-                        'data_type' : type.lower()+"seq",
+                        'data_type' : sequencing_type.lower()+"seq",
                         'database' : 'sra',
                         'runs' : top_entries
                         }
@@ -107,7 +120,7 @@ def sra_db_search(library_strategy, scientific_name_list=None, accession=None, i
         term += f" NOT ({' OR '.join(sra_blacklist)})"
 
     # If accession is not None, it means that a specific sra entry is searched
-    if accession is not None:
+    if accession:
         term_list = [f"{term} AND {accession}"]
     else:
         if scientific_name_list:
@@ -184,10 +197,10 @@ def getRuns(entry):
     title = re.search(r'<Title>(.*?)</Title>', entry["ExpXml"]).group(1)
     library_layout_str = re.search(r'<LIBRARY_LAYOUT(.*?)</LIBRARY_LAYOUT>', entry["ExpXml"]).group(1)
     scientific_name = re.search(r'ScientificName=\"(.*?)\"', entry["ExpXml"])
+    organism_taxid = re.search(r'Organism taxid=\"(.*?)\"', entry["ExpXml"]).group(1)
     if scientific_name:
         scientific_name = scientific_name.group(1)
     else:
-        organism_taxid = re.search(r'Organism taxid=\"(.*?)\"', entry["ExpXml"]).group(1)
         scientific_name = UniprotTaxo.fetch_scientific_name_and_rank(organism_taxid)[0]
     # Determine the library type (paired-end, single-end, or none)
     library_type = ""
@@ -218,6 +231,7 @@ def getRuns(entry):
         run_dict['accession'] = accession
         run_dict['total_bases'] = total_bases
         run_dict['scientific_name'] = scientific_name
+        run_dict['taxid'] = organism_taxid
                                        
         # Add the result dictionary to the list of results
         runs.append(run_dict)
@@ -230,7 +244,47 @@ def getSequencing(run_type, accession_list, config):
     for acc in accession_list:
         runs.append(sra_db_search(run_type, accession=acc))
     return {"data_type": "dnaseq", "database": "sra", "runs": runs}
-        
+
+def get_children(taxid, exclude_ids=[]):
+    childs = []
+    url = f"https://rest.uniprot.org/taxonomy/search?query=(ancestor:{taxid})%20AND%20(rank:SPECIES%20OR%20rank:STRAIN%20OR%20rank:SUBSPECIES)&size=500&format=json"
+    response = get_url(url)
+    results = response.json()["results"]       
+    for result in results:
+        child_taxon_id = result['taxonId']
+        if child_taxon_id not in exclude_ids:
+            childs.append((child_taxon_id, result['scientificName']))
+
+    while response.links.get("next", {}).get("url"):
+        response = get_url(response.links["next"]["url"])
+        results = response.json()["results"]
+        for result in results:
+            child_taxon_id = result["taxonId"]
+            if child_taxon_id not in exclude_ids:
+                childs.append((child_taxon_id, result['scientificName']))
+    return childs
+
+def get_url(url, max_attempts=3):
+    attempts = 0
+    while attempts < max_attempts:
+        try:
+            response = requests.get(url)
+            if response.ok:
+                return response
+            else:
+                response.raise_for_status()
+        except Exception as e:
+            attempts += 1
+            print(f"Attempt {attempts} failed for URL: {url}. Error: {e}")
+            if attempts < max_attempts:
+                print("Retrying in 5 seconds...")
+                time.sleep(5)
+            else:
+                print(f"Max attempts reached. Failed to fetch URL: {url}")
+                raise e
+
+    return response
+
 # Estimations:
 # 1,000,000,000,000 --> 255.9Gb
 # 300,000,000,000 --> 63.8Gb

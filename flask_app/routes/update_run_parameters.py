@@ -7,33 +7,33 @@ update_run_parameters_bp = Blueprint('update_run_parameters_bp', __name__)
 def update_run_parameters():
     data = request.json
     user = data.get('user')
-    type = data.get('type')
-    urls = data.get('urls')
+    data_type = data.get('data_type')
+    file_list = data.get('file_list')
     run_id = data.get('run_id')
         
-    if not user or not urls or not run_id:
+    if not user or not file_list or not run_id:
         return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
     
-    if type == 'assembly':
+    if data_type == 'assembly':
         query = {
             "parameters.id": int(run_id)
         }
         update = {
             "$set": {
-                "parameters.startSection.genomeFileList": urls['assembly']
+                "parameters.startSection.assemblyFileList": file_list
             }
         }
         update_result = update_one('runs', query, update)
         if update_result['status'] != 'success':
             return jsonify({'status': 'error', 'message': update_result['message']}), 500
 
-    if type == 'evidence':
+    if data_type == 'evidence':
         query = {
             "parameters.id": int(run_id)
         }
         update = {
             "$set": {
-                "parameters.annotationSection.evidenceFileList": urls['evidence']
+                "parameters.annotationSection.evidenceFileList": file_list
             }
         }
         update_result = update_one('runs', query, update)

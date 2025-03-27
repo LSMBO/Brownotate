@@ -8,13 +8,6 @@ config = load_config()
 env = os.environ.copy()
 env['PATH'] = os.path.join(config['BROWNOTATE_ENV_PATH'], 'bin') + os.pathsep + env['PATH']
 
-def build_check_species_exists_command(species):
-    return ["python", f"{config['BROWNOTATE_PATH']}/check_species_exists.py", "-s", species]
-        
-def build_dbsearch_command(species, run_id):
-    arguments = ['-s', species, '--run-id', run_id, '--dbs-only', '-od', f'output_runs/{run_id}']
-    return ["python", f"{config['BROWNOTATE_PATH']}/main.py"] + arguments
-
 def build_brownotate_resume_command(run_id):
     arguments = ['--resume', run_id]
     return ["python", f"{config['BROWNOTATE_PATH']}/main.py"] + arguments
@@ -26,7 +19,7 @@ def build_brownotate_command(parameters, current_datetime):
     else:
         cpus = str(int(os.cpu_count()/2))
         
-    arguments = ['-s', species, '--run-id', current_datetime, '-od', f'output_runs/{current_datetime}', '--cpus', cpus]
+    arguments = ['-s', str(species), '--run-id', current_datetime, '-od', f'output_runs/{current_datetime}', '--cpus', cpus]
     arguments += build_start_section_arguments(parameters['startSection'])
     arguments += build_annotation_section_arguments(parameters['annotationSection'])
     arguments += build_brownaming_section_arguments(parameters['brownamingSection'])
@@ -38,15 +31,12 @@ def build_brownotate_command(parameters, current_datetime):
 def build_start_section_arguments(start_section):
     arguments = []
     if start_section['sequencingFiles']:
-        arguments += add_files_or_accessions(start_section['sequencingFilesList'], '-dfile')
+        arguments += add_files_or_accessions(start_section['sequencingFileList'], '-dfile')
     elif start_section['sequencingAccessions']:
-        arguments += add_files_or_accessions(start_section['sequencingAccessionsList'], '-d')
-    elif start_section['genomeFile']:
-        if start_section['genomeFileIsURL']:
-            arguments.append('-gu')
-        else:
-            arguments.append('-g')
-        arguments.append(start_section['genomeFileList'][0])
+        arguments += add_files_or_accessions(start_section['sequencingAccessionList'], '-d')
+    elif start_section['assembly']:
+        arguments.append('-g')
+        arguments.append(start_section['assemblyFileList'][0])
         
     if start_section['skipFastp']:
         arguments.append('--skip-fastp')
@@ -58,7 +48,7 @@ def build_start_section_arguments(start_section):
 
 def build_annotation_section_arguments(annotation_section):
     arguments = []
-    if annotation_section['evidenceFile']:
+    if annotation_section['evidenceFileList']:
         arguments.append('-e')
         arguments.append(annotation_section['evidenceFileList'][0])
 

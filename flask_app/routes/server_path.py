@@ -9,9 +9,10 @@ def server_path():
         data = request.json
         path = data.get('path')
         extension = data.get('extension')
+        
         if not os.path.exists(path):
             return jsonify({"error": "Path not found"}), 404
-
+        
         if extension == ".fasta" or extension == ".fa" or extension == ".fna" or extension == ".faa":
             extensions = (".fasta", ".fa", ".fna", ".faa")
         else:

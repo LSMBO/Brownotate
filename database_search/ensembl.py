@@ -2,17 +2,18 @@ from ftp import ensembl
 from database_search.uniprot import UniprotTaxo
 from . import ncbi
 
-def getBetterEnsembl(scientific_name, taxonomy, data_type, search_similar_species=False, config=None):
-    results = ensembl.getDataFromFTP(data_type, [scientific_name])
+def getBetterEnsembl(taxonomy, data_type):
+    ensembl_ftp_species = ensembl.ensembl_species
+
+    list_of_species = [taxonomy['scientificName']]
+    results = ensembl.getDataFromFTP(data_type, list_of_species)
     if results:
-        taxonId = ncbi.getTaxonID(results["scientific_name"], config)
-        results["taxonId"] = taxonId
+        results["taxonId"] = taxonomy['taxonId']
         return results
-    if search_similar_species == False:
-        return results
-    lineage_taxo_ids = [object['taxonId'] for object in reversed(taxonomy.get("lineage"))]
+
+    # lineage_taxo_ids = [object['taxonId'] for object in reversed(taxonomy.get("lineage"))]
     exclude_ids = []
-    for taxo_id in lineage_taxo_ids:
+    for taxo_id in list_of_species:
         if taxo_id == 6656:
             if data_type == 'pep':
                 return {

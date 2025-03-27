@@ -31,6 +31,7 @@ Brownaming-1.0.0/test/
 runs/*
 output_runs/*
 uploads/*
+user_download/*
 Brownaming-1.0.0/runs/*
 stats/transrate.py
 stats/*odb10/

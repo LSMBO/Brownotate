@@ -9,6 +9,12 @@ def create_upload_folder():
     os.makedirs(upload_folder, exist_ok=True)
     return upload_folder
 
+def create_download_folder():
+    current_date = datetime.datetime.now().strftime("%d-%m-%Y")
+    download_folder = os.path.join('user_download', current_date)
+    os.makedirs(download_folder, exist_ok=True)
+    return download_folder
+
 def handle_file_upload(files, upload_folder):
     file_paths = []
     for key in files:
