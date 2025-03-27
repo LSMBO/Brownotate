@@ -1,8 +1,7 @@
 {
-    "email": "",
-    "MONGO_URI": "",
-    "BROWNOTATE_PATH": "",
-    "BROWNOTATE_ENV_PATH": "",
-    "SRA_DOWNLOAD_ENV_PATH": ""
-  }
-  
+  "email": "",
+  "MONGO_URI": "",
+  "BROWNOTATE_PATH": "",
+  "BROWNOTATE_ENV_PATH": "",
+  "SRA_DOWNLOAD_ENV_PATH": ""
+}

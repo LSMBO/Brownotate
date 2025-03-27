@@ -14,6 +14,7 @@ dependencies:
   - megahit=1.2.9
   - cd-hit=4.8.1
   - matplotlib=3.9.2
+  - ncbi-datasets-cli=17.1.0
   - pip
   - pip:
       - xlsxwriter==3.2.0

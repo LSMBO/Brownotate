@@ -21,7 +21,7 @@ def get_dbsearch():
             if valid_results:
                 data = max(results, key=lambda x: x['date'])
                 return jsonify({'status': 'success', 'data': data}), 200
-            print("No valid_results")
+
         return jsonify({'status': 'error', 'message': 'nothing found'}), 200
     
     except Exception as e:
