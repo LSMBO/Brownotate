@@ -18,15 +18,12 @@ def download_ncbi():
     try:
         download_folder = create_download_folder() # f"user_download/{dd-mm-yyyy}"
         zip_path = os.path.join(download_folder, download_command[6]) # f"{download_folder}/{accession}_annotation.zip"
-        print(download_command)
-        print(f"zip_path: {zip_path}")
         unzip_dir = os.path.splitext(zip_path)[0] # f"{download_folder}/{accession}_annotation"
         server_filename = os.path.join(config['BROWNOTATE_PATH'], unzip_dir + ".fasta") # /home/ubuntu/br/bin/Brownotate/{download_folder}/{accession}_annotation.fasta
         download_command[6] = zip_path # f"{download_folder}/{accession}_annotation.zip"
         
         if os.path.exists(server_filename):
             return jsonify({'status': 'success', 'path': server_filename}), 200
-        print(download_command)
         result = subprocess.run(
             download_command, capture_output=True, text=True, check=True, env=env
         )
@@ -41,7 +38,6 @@ def download_ncbi():
         shutil.move(result_file_path, server_filename) # Move f"{download_folder}/{accession}_annotation/ncbi_dataset/data/{accession}/{assembly/annotation.fasta}" to f"{download_folder}/{accession}_annotation.fasta"
         shutil.rmtree(unzip_dir) # Remove f"{download_folder}/{accession}_annotation"
         os.remove(f"{unzip_dir}.zip") # Remove f"{download_folder}/{accession}_annotation.zip"
-        print(server_filename)
         return jsonify({'status': 'success', 'path': server_filename}), 200
 
     except Exception as e:

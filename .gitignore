@@ -29,6 +29,7 @@ MANIFEST
 test/
 Brownaming-1.0.0/test/
 runs/*
+!runs/.gitkeep
 output_runs/*
 uploads/*
 user_download/*
