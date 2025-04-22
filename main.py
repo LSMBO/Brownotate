@@ -242,7 +242,7 @@ if args.brownaming_maxtaxo:
     if (taxo is None):
         raise ValueError(f"\nTaxo \"{taxo}\" not found.")
     else:
-        BROWNAMING_MAX_TAXO = taxo.get_tax_id()
+        BROWNAMING_MAX_TAXO = taxo.get_taxid()
 
 BROWNAMING_EXCLUDE = []
 if args.brownaming_exclude:
@@ -251,7 +251,7 @@ if args.brownaming_exclude:
         if (taxo is None):
             raise ValueError(f"\nTaxo \"{taxo}\" not found.")
         else:
-            BROWNAMING_EXCLUDE.append(taxo.get_tax_id())
+            BROWNAMING_EXCLUDE.append(taxo.get_taxid())
 
 BROWNAMING_CUSTOM_DB = []
 if args.brownaming_db:
@@ -398,7 +398,7 @@ if args.auto:
     # if better_data["data_type"] == "dnaseq":
     #     if "dnaseq_files" not in STATE:
     #         logger.info(f"Download the sequencing datasets ...")
-    #         downloaded_dnaseq_files = pipelines.run_download(better_data, download)
+    #         downloaded_dnaseq_files = pipelines.run_download(better_data, STATE, download)
     #         STATE["dnaseq_files"] = downloaded_dnaseq_files
     #         logger.info(f"The sequencing datasets have been successfully downloaded.")
     #     # Skip this step for the resumed run
@@ -408,7 +408,7 @@ if args.auto:
     # elif better_data["data_type"] == "genome":
     #     if "genome_file" not in STATE:
     #         logger.info(f"Download the genome file ...")
-    #         genome_entry = pipelines.run_download(better_data, download)
+    #         genome_entry = pipelines.run_download(better_data, STATE, download)
     #         STATE["genome_entry"] = genome_entry
     #         STATE["genome_file"] = genome_entry["file_name"]
     #         logger.info(f"The genome file have been successfully downloaded.")        
@@ -434,7 +434,7 @@ else:
         # Download the sequencing datasets
         if "dnaseq_files" not in STATE:
             logger.info(f"Download the sequencing datasets ...")
-            downloaded_dnaseq_files = pipelines.run_download(STATE["dnaseq_entries"], download)
+            downloaded_dnaseq_files = pipelines.run_download(STATE["dnaseq_entries"], STATE, download)
             STATE["dnaseq_files"] = downloaded_dnaseq_files 
             logger.info(f"The sequencing datasets have been successfully downloaded.")
         # Skip this step for the resumed run
@@ -541,7 +541,7 @@ if annotation_tool=="augustus":
         #     logger.info(f"The evidence file has already been downloaded.")
         # else:           
         #     logger.info(f"Download the evidence file...")
-        #     STATE["evidence_file"] = pipelines.run_download(STATE["evidence_search"], download)["file_name"]
+        #     STATE["evidence_file"] = pipelines.run_download(STATE["evidence_search"], STATE, download)["file_name"]
             
              
     makeJson("state.json", STATE)

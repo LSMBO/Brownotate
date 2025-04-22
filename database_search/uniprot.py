@@ -4,11 +4,14 @@ import time
 
 class UniprotTaxo:
     def __init__(self, taxid, reference_taxid=None):
-        self.taxid = taxid
+        try:
+            self.taxid = int(taxid)
+        except ValueError:
+            self.taxid = self.fetch_taxon_id(taxid)
         self.reference_taxid = reference_taxid
         self.taxonomy = self.fetch_taxonomy_data(reference_taxid)
 
-    def fetch_taxon_id(scientific_name):
+    def fetch_taxon_id(self, scientific_name):
         species_parts = scientific_name.lower().split(' ')
         scientific_name_join = "%20".join(species_parts)
         url = f"https://rest.uniprot.org/taxonomy/search?query=(scientific:%22{scientific_name_join}%22)&size=500&format=json"

@@ -9,7 +9,7 @@ def gunzip(file):
     return file_name
 
 
-def run_download(data, download):
+def run_download(data, state, download):
     if isinstance(data, str):
         ftp = 'uniprot'
         database = 'uniprot'
@@ -30,7 +30,7 @@ def run_download(data, download):
     data_type = data["data_type"] # dnaseq, genome, proteins
     database = data["database"] # sra, ensembl, genbank, refseq, uniprot
     if (database == "sra"):
-        return download.download_sra(data)
+        return download.download_sra(data, state['args']['cpus'])
     
     elif (database == "uniprot"):
         return download.download_uniprot(data)

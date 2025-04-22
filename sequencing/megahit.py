@@ -19,7 +19,7 @@ def megahit(scientific_name, sequencing_files, cpus, run_id):
             paired_fwd_seq_files.append(files[0])
             paired_rev_seq_files.append(files[1])
 
-    command_part1 = f"megahit -o genome/megahit_working_dir -t {cpus} --mem-flag 0 -m 0.8 "
+    command_part1 = f"megahit -o genome/megahit_working_dir -t {cpus} --mem-flag 2 -m 0.9 "
     command_part_single = ""
     if len(single_seq_files)!=0:
         command_part_single = "-r "+','.join(single_seq_files)+" "

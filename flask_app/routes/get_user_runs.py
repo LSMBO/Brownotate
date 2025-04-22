@@ -18,8 +18,8 @@ def get_user_runs():
     updated_runs = []
     for run in runs['data']:
         run_id = run['parameters']['id']
-        if run['status'] == 'running':
-            time.sleep(5) # It let the time to /run_brownotate to execute the process and add the process to the database
+        if run['status'] == 'running' and not user.startswith('workshop-cjfps'):
+            time.sleep(3) # It let the time to /run_brownotate to execute the process and add the process to the database
             check_process(run_id)
         updated_runs.append(run)
     cpus = get_cpus_used()

@@ -1,7 +1,7 @@
 {
-  "email": "",
-  "MONGO_URI": "",
-  "BROWNOTATE_PATH": "",
-  "BROWNOTATE_ENV_PATH": "",
-  "SRA_DOWNLOAD_ENV_PATH": ""
+  "email": "browna@unistra.fr",
+  "MONGO_URI": "mongodb://127.0.0.1:27017/brownotate-db",
+  "BROWNOTATE_PATH": "/home/ubuntu/br/bin/Brownotate-1.1.0",
+  "BROWNOTATE_ENV_PATH": "/home/ubuntu/anaconda3/envs/br",
+  "SRA_DOWNLOAD_ENV_PATH": "/home/ubuntu/anaconda3/envs/sra-download"
 }
