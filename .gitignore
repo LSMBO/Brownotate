@@ -36,6 +36,7 @@ user_download/*
 Brownaming-1.0.0/runs/*
 stats/transrate.py
 stats/*odb10/
+config.json
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
