@@ -50,7 +50,7 @@ def download_sra(data, cpus):
                             "platform": platform
                         })
                     else:
-                        fastq_files.append({"accession": accession, "file_name": f"seq/{accession}.fastq", "platform": platform})
+                        fastq_files.append({"accession": accession, "file_name": [f"seq/{accession}.fastq"], "platform": platform})
                 else:
                     print(f"Error: The sequencing data for {accession} could not be downloaded properly. Passing...") 
             else:
