@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+import database_search.wiki as wiki
 import requests
 
 check_species_exists_bp = Blueprint('check_species_exists_bp', __name__)
@@ -29,11 +30,13 @@ def check_species_exists():
                     if taxon["scientificName"] == "Bacteria":
                         is_bacteria = True
                         break
+                taxo_image_url = wiki.download_species_image(result["scientificName"])
                 output_data = {
                     'scientific_name': result["scientificName"],
                     'taxid': result["taxonId"],
                     'lineage': result["lineage"],
-                    'is_bacteria': is_bacteria
+                    'is_bacteria': is_bacteria,
+                    'taxo_image_url': taxo_image_url
                 }
                 return jsonify({'status': 'success', 'results': output_data}), 200
 

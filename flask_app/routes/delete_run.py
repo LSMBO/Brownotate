@@ -15,7 +15,10 @@ def delete_run():
 		
 	if not run_id:
 		return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
-		
+	
+	if os.path.exists(f'runs/{run_id}'):
+		shutil.rmtree(f'runs/{run_id}')
+
 	# Find the working_dir_id
 	query = {'parameters.id': int(run_id)}
 	result = find_one('runs', query)

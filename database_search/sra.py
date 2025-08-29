@@ -1,293 +1,474 @@
-import sys, re, time
-from Bio import Entrez
-import xmltodict
-import requests
-from database_search.uniprot import UniprotTaxo
-from . import ncbi
+import os
+import pandas as pd
+from itertools import combinations
+from utils import load_config
+from pysradb.search import SraSearch
+import statistics
+import subprocess
+import json
+from flask import Blueprint, request, jsonify
+from flask_app.database import find, update_one
+from timer import timer
 
-CONFIG = None
 
-def getBetterSra(synonyms_scientific_names, taxonomy, sequencing_type, config, illumina_only, sra_blacklist):
-    global CONFIG
-    CONFIG = config
-    top10 = {}
-    exclude_ids = []
+config = load_config()
+env = os.environ.copy()
+env['PATH'] = os.path.join(config['BROWNOTATE_ENV_PATH'], 'bin') + os.pathsep + env['PATH']
+
+platforms_layout_tuples = [("ILLUMINA", "PAIRED"), ("ILLUMINA", "SINGLE"), ("BGISEQ", "PAIRED"), ("BGISEQ", "SINGLE"), ("ION_TORRENT", "SINGLE")]
+extra_platforms_layout_tuples = platforms_layout_tuples + [
+    ("OXFORD_NANOPORE", None), ("PACBIO_SMRT", None), ("CAPILLARY", None),
+    ("ABI_SOLID", None), ("LS454", None), ("COMPLETE_GENOMICS", None), ("HELICOS", None)
+]
+
+search_sequencing_run_bp = Blueprint('search_sequencing_run_bp', __name__)
+
+@search_sequencing_run_bp.route('/search_sequencing_run', methods=['POST'])
+def search_sequencing_run():
+    accession = request.json.get('accession')
+    if not accession:
+        return jsonify({"error": "Accession number is required"}), 400
+    sequencing_data = get_accession(accession)
+    if not sequencing_data:
+        return jsonify({"error": "No data found for the given accession number"}), 404
+    return jsonify({'data': sequencing_data, 'status': 'success'}), 200
+
+
+
+dbs_dnaseq_bp = Blueprint('dbs_dnaseq_bp', __name__)
+
+@dbs_dnaseq_bp.route('/dbs_dnaseq', methods=['POST'])
+def dbs_dnaseq():
+    start_time = timer.start()
     
-    is_group = False
-    if taxonomy['lineage'][0]['rank'] not in ['species', 'subspecies', 'strain']:
-        is_group = True
-        
-    for taxo in taxonomy['lineage']:
-        if taxo['rank'] == 'genus':
-            is_group = True
-        
-        if is_group:
-            children = get_children(taxo['taxonId'], exclude_ids)
-            children_taxids, children_scientific_names = zip(*children) if children else ([], [])
-            exclude_ids += children_taxids
-            top10 = getTop10Sra(children_scientific_names, sequencing_type, illumina_only=illumina_only, sra_blacklist=sra_blacklist)
-            if top10:
-                return top10            
-        else:
-            top10 = getTop10Sra(synonyms_scientific_names, sequencing_type, illumina_only=illumina_only, sra_blacklist=sra_blacklist)
-            if top10:
-                return top10
-        
-    return top10
+    user = request.json.get('user')
+    dbsearch = request.json.get('dbsearch')
+    create_new_dbs = request.json.get('createNewDBS')
+    restricted = request.json.get('restricted')
+    
+    if not user or not dbsearch:
+        return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
 
-      
-def getTop10Sra(scientific_name_list, sequencing_type, max_bases=10**25, illumina_only=False, sra_blacklist=[]):
-    record = sra_db_search(sequencing_type, scientific_name_list, illumina_only=illumina_only, sra_blacklist=sra_blacklist)
-    # Check if any results were found
-    if "IdList" in record:        
-        best_entry_ids = record["IdList"]
-        # Check if there are any entries in the results list
-        if len(best_entry_ids) != 0:
-            run_info_list = getRunInfoList(best_entry_ids) # run infos in a xml format
-            # Initialize variables to hold the best entries information
-            top_entries = []
-            max_bases_list = []
-            # Loop through the run information for each entry
-            for entry in run_info_list:
-                runs = getRuns(entry) # run infos convert in a dict [{run1_id : X, run1_platform: X, ...}, {run2}, ...]
-                if not runs:
-                    continue
-                # Loop through the runs to find the ones with the most bases
-                for run in runs:
-                    if run['platform'] == "BGISEQ": # BGISEQ sequencing datasets do not work very well with Megahit 
-                        continue
-                    if (run['total_bases']):
-                        total_bases = int(run['total_bases'])
-                        if run["library_type"] == "paired":
-                            total_bases *= 2
-                        # If the run has more bases than the max_bases limit, it goes to the next run
-                        if total_bases > max_bases:
-                            continue
-                        # If we haven't found 10 runs yet, add the current run to the list
-                        if (len(max_bases_list) < 10) and (total_bases <= (max_bases-sum(max_bases_list))) :
-                            top_entries.append(run)
-                            max_bases_list.append(total_bases)
-                        # It filters the better sequencing based on the number of base instead of the relevance 
-                        else:
-                            # Find the index of the lowest run in the top 10
-                            min_index = max_bases_list.index(min(max_bases_list))
-                            # Lower value
-                            lower_value = sorted(max_bases_list)[0]
-                            # Sum of the 9 highest values
-                            top_nine_sum = sum(sorted(max_bases_list)[1:])                 
-                            # If the current run has more bases than the lowest run in the top 10, replace it
-                            if (total_bases > lower_value) and (total_bases <= (max_bases-top_nine_sum)):
-                                top_entries[min_index] = run
-                                max_bases_list[min_index] = total_bases
-
-            # Sort the top_entries list by total_bases
-            top_entries.sort(key=lambda x: int(x['total_bases']), reverse=True)
-            
-            # Add the rank and taxonID attribute to each entry
-            for i in range(len(top_entries)):
-                top_entries[i]['rank'] = i + 1
-            # Convert the result list to a JSON object and return it
-            for entry in top_entries:
-                return {
-                        'data_type' : sequencing_type.lower()+"seq",
-                        'database' : 'sra',
-                        'runs' : top_entries
-                        }
-            
-            return {}
-
-    return {}
-
-def sra_db_search(library_strategy, scientific_name_list=None, accession=None, illumina_only=False, sra_blacklist=[]):
-    # Set the email address for Entrez
-    Entrez.email = CONFIG['email']
-    term = ""
-    combined_record = {
-        'Count' : 0,
-        'IdList' : []
+    output_data = {
+        'run_id': dbsearch['run_id'],
+        'status': 'dnaseq',
+        'date': dbsearch['date'],
+        'data': dbsearch['data']
     }
 
-    if library_strategy == "RNA":
-        term = f"\"biomol rna\"[Properties]"
-    else: #library_strategy == "DNA"
-        term = f"\"biomol dna\"[Properties]"
-    
-    term = f"{term} NOT DNBSEQ[Platform]"
+    dnaseq = get_dnaseq(output_data['data'], restricted)
+    output_data['data']['dnaseq'] = dnaseq
 
-    if illumina_only:
-        term += f"{term} AND Illumina[Platform]"
-    if sra_blacklist:
-        term += f" NOT ({' OR '.join(sra_blacklist)})"
+    timer_str = timer.stop(start_time)
+    print(f"Timer dbs_dnaseq: {timer_str}")
+    output_data['data']['timer_dnaseq'] = timer_str
 
-    # If accession is not None, it means that a specific sra entry is searched
-    if accession:
-        term_list = [f"{term} AND {accession}"]
-    else:
-        if scientific_name_list:
-            term_list = []
-            num_names = len(scientific_name_list)
-            for i in range(0, num_names, 10):
-                term_list.append(term)
-                scientific_name_sublist = scientific_name_list[i:min(i+10, num_names)]
-                term_list[-1] = f"{term_list[-1]} AND ({(' OR '.join([f'{name}[Organism]' for name in scientific_name_sublist]))})"
-
-    for term in term_list:
-        # Search SRA for sequencing data using the given search term
+    query = {'run_id': dbsearch['run_id']}
+    update = { '$set': {'status': 'dnaseq', 'data': output_data['data']} } 
         
-        try:
-            search_handle = Entrez.esearch(db="sra",
-                                        term=term,
-                                        sort='relevance',
-                                        idtype="acc",
-                                        retmax=10000)
-            record = Entrez.read(search_handle)
-                
-            if record["Count"] != '0':
-                combined_record['Count'] += int(record["Count"])
-                combined_record['IdList'].extend(record['IdList'])
-                
-            search_handle.close()
-            
-        except Exception as e:
-            print("Connection to NCBI servers failed. Please try again later.", file=sys.stderr)
-            print(e, file=sys.stderr)
-            sys.exit(1)
-    
-    if combined_record["Count"]==0:
-        return "Nothing"
-        
-    # If accession is not None, it means that a specific sra entry is searched. It is also directly return as a json
-    if accession is not None:
-        return jsonFromRecord(record, accession)
-    return combined_record
+    if create_new_dbs:
+        update_one('dbsearch', query, update)
 
-def jsonFromRecord(record, accession=None):
-    if "IdList" in record and len(record["IdList"]) == 1:
-        entry = getRunInfoList(record["IdList"])[0]
-        runs = getRuns(entry)
-        if accession is not None:
-            for run in runs:
-                if (run["accession"]==accession):
-                    return run
-        return runs
-              
-def getRunInfoList(entry_list):
-    # Build a comma-separated string of SRA entry IDs to query
-    entry_ids = ','.join(entry_list)
-        
-    # Query the SRA database for summary information on each entry
-    
+    return jsonify(output_data)
+
+def fetch_ncbi_genomes(taxid):
+    command = [
+        "datasets", 
+        "summary", 
+        "genome", 
+        "taxon", str(taxid),
+        "--assembly-level", "chromosome,complete,scaffold",
+        "--limit", "10000",
+    ]
     try:
-        run_info_handle = Entrez.esummary(db="sra", id=entry_ids)
-        run_info = Entrez.read(run_info_handle)
-        run_info_handle.close()
+        result = subprocess.run(command, capture_output=True, text=True, check=True, env=env)
+        return json.loads(result.stdout).get("reports", [])
     
-    except Exception as e:
-        print("Connection to NCBI servers failed. Please try again later.", file=sys.stderr)
-        sys.exit(1)
-        
-    # Return the summary information for each entry as a list
-    return run_info
-
-def getRuns(entry):
-    entry_id = entry["Id"]
+    except FileNotFoundError:
+        print("Error: 'datasets' command-line tool is not installed or not in PATH.")
+        return []
+    except subprocess.CalledProcessError as e:
+        print(f"Error: Command failed with error {e}")
+        return []
     
-    # Extract platform, title, and library type information from the experiment XML using regular expressions
-    platform = re.search(r'<Platform.*?>(.*?)</Platform>', entry["ExpXml"]).group(1)
-    title = re.search(r'<Title>(.*?)</Title>', entry["ExpXml"]).group(1)
-    library_layout_str = re.search(r'<LIBRARY_LAYOUT(.*?)</LIBRARY_LAYOUT>', entry["ExpXml"]).group(1)
-    scientific_name = re.search(r'ScientificName=\"(.*?)\"', entry["ExpXml"])
-    organism_taxid = re.search(r'Organism taxid=\"(.*?)\"', entry["ExpXml"]).group(1)
-    if scientific_name:
-        scientific_name = scientific_name.group(1)
-    else:
-        scientific_name = UniprotTaxo.fetch_scientific_name_and_rank(organism_taxid)[0]
-    # Determine the library type (paired-end, single-end, or none)
-    library_type = ""
-    if ("paired" in library_layout_str.lower()):
-        library_type = "paired"
-    elif ("single" in library_layout_str.lower()):
-        library_type = "single"
-    else:
-        library_type = "none"
     
-    # Extract the run information from the Runs section of the XML using regular expressions
-    runs_list = re.findall(r'<Run .*?/>', entry["Runs"])
-    runs = []
-    
-    for run_str in runs_list:
-        run = xmltodict.parse(run_str)
-        run_dict = {} 
-                                       
-        # Extract the accession and total bases for the run
-        accession = run['Run']['@acc']
-        total_bases = run['Run']['@total_bases']
+def get_genome_size(taxonomy):
+    for taxo in taxonomy["lineage"]:
+        results = fetch_ncbi_genomes(taxo["taxonId"])
+        if results:
+            genome_sizes = []
+            species_list = []
+            for res in results:
+                length = int(res['assembly_stats']['total_sequence_length'])
+                species_name = res['organism']['organism_name']
+                if species_name not in species_list:
+                    genome_sizes.append(length)
+                    species_list.append(species_name)
                     
-        # Add the run information to the result dictionary
-        run_dict['entry_id'] = entry_id
-        run_dict['platform'] = platform
-        run_dict['title'] = title
-        run_dict['library_type'] = library_type
-        run_dict['accession'] = accession
-        run_dict['total_bases'] = total_bases
-        run_dict['scientific_name'] = scientific_name
-        run_dict['taxid'] = organism_taxid
-                                       
-        # Add the result dictionary to the list of results
-        runs.append(run_dict)
-        return runs
+            mean  = round(statistics.mean(genome_sizes)) if genome_sizes else 0
+            std   = round(statistics.stdev(genome_sizes)) if len(genome_sizes) > 1 else 0
+            cv = std / mean if mean > 0 else 0
+            lower_bound = mean * 50
+            upper_bound = mean * 80
+            return {
+                'min': min(genome_sizes) if genome_sizes else 0,
+                'max': max(genome_sizes) if genome_sizes else 0,
+                'mean': mean,
+                'std': std,
+                'cv': round(cv, 3),
+                'count': len(genome_sizes),
+                'lower_bound': lower_bound,
+                'upper_bound': upper_bound,
+                'taxid': taxo["taxonId"],
+                'scientific_name': taxo["scientificName"],
+                'species_list': species_list
+            }            
+        
+    return None
 
-def getSequencing(run_type, accession_list, config):
-    global CONFIG
-    CONFIG = config
+def run_pysradb(command, size_limits, runs_blacklist):
+    instance = SraSearch(
+        organism=command['organism'],
+        return_max=200,
+        source="GENOMIC",
+        platform=command['platform'],
+        layout=command['layout'],
+        selection=command['selection'],
+        strategy=command['strategy'],
+        verbosity=3
+    )
+    instance.search()
+    original_df = instance.get_df()
+    if original_df.empty:
+        return None
+    columns_to_keep = [
+        "study_accession", "experiment_accession", "experiment_library_strategy",
+        "experiment_library_source", "experiment_library_selection", "sample_accession",
+        "sample_alias", "experiment_instrument_model", "run_1_size", "run_1_total_spots",
+        "experiment_alias", "experiment_design_description", "experiment_library_name",
+        "experiment_platform", "experiment_sample_descriptor_accession", "library_layout",
+        "run_1_alias", "run_1_base_A_count", "run_1_base_C_count", "run_1_base_G_count",
+        "run_1_base_N_count", "run_1_base_T_count", "study_alias", "study_study_abstract",
+        "study_study_title", "submission_center_name", "submission_lab_name", "run_1_accession",
+        "sample_taxon_id", "sample_scientific_name", "experiment_title", "run_1_total_bases"
+    ]
+    df = original_df.dropna(subset=['run_1_total_bases'])
+    existing_columns = [col for col in columns_to_keep if col in df.columns]
+    df = df[existing_columns]
+    df = df[~df['run_1_accession'].isin(runs_blacklist)]
+    df['run_1_size'] = df['run_1_size'].astype(float) / (1024 ** 3)
+    df['run_1_total_bases'] = df['run_1_total_bases'].astype(int)
+    df = df[df['run_1_total_bases'] < size_limits[1] * 2]        
+        
+    df = df.sort_values(by='run_1_total_bases', ascending=False)
+    df = rename_columns(df)
+    df['optimal_platform'] = df['platform'].apply(lambda x: x in ['ILLUMINA', 'BGISEQ', 'ION_TORRENT'])
+    df['optimal_strategy'] = df['strategy'] == 'WGS'
+    df['optimal_selection'] = df['selection'] == 'RANDOM'
+    return df
+
+def rename_columns(df):
+    column_mapping = {
+        'run_1_accession': 'accession',
+        'run_1_size': 'size',
+        'run_1_total_bases': 'total_bases',
+        'sample_taxon_id': 'taxid',
+        'sample_scientific_name': 'scientific_name',
+        'experiment_title': 'title',
+        'experiment_platform': 'platform',
+        'library_layout': 'layout',
+        'experiment_library_strategy': 'strategy',
+        'experiment_library_selection': 'selection'
+    }
+    return df.rename(columns=column_mapping)
+
+
+def fetch_runs_for_species(species, parameters):
+    size_limits = parameters['original_size_limits']
+    selection = parameters['selection']
+    strategy = parameters['strategy']
+    runs_blacklist = parameters['runs_blacklist']
     runs = []
-    for acc in accession_list:
-        runs.append(sra_db_search(run_type, accession=acc))
-    return {"data_type": "dnaseq", "database": "sra", "runs": runs}
+    if selection:
+        platforms_layouts = platforms_layout_tuples
+    else:
+        platforms_layouts = extra_platforms_layout_tuples
+    
+    for platform, layout in platforms_layouts:
+        command = {
+            "organism": species,
+            "platform": platform,
+            "layout": layout,
+            "selection": selection,
+            "strategy": strategy
+        }
+        df = run_pysradb(command, size_limits, runs_blacklist)
+        if df is not None and not df.empty:
+            runs.extend(df.to_dict(orient='records'))
+            
+        if parameters['exclude_input_species']:
+            runs = [run for run in runs if run['taxid'] != str(parameters['input_taxid'])]
+    return runs
 
-def get_children(taxid, exclude_ids=[]):
-    childs = []
-    url = f"https://rest.uniprot.org/taxonomy/search?query=(ancestor:{taxid})%20AND%20(rank:SPECIES%20OR%20rank:STRAIN%20OR%20rank:SUBSPECIES)&size=500&format=json"
-    response = get_url(url)
-    results = response.json()["results"]       
-    for result in results:
-        child_taxon_id = result['taxonId']
-        if child_taxon_id not in exclude_ids:
-            childs.append((child_taxon_id, result['scientificName']))
+def group_runs_by_species(runs):
+    species_dict = {}
+    for run in runs:
+        taxid = run['taxid']
+        if taxid not in species_dict:
+            species_dict[taxid] = []
+        species_dict[taxid].append(run)
+    return species_dict
 
-    while response.links.get("next", {}).get("url"):
-        response = get_url(response.links["next"]["url"])
-        results = response.json()["results"]
-        for result in results:
-            child_taxon_id = result["taxonId"]
-            if child_taxon_id not in exclude_ids:
-                childs.append((child_taxon_id, result['scientificName']))
-    return childs
+def find_batches_for_input_taxonomy(parameters):
+    input_taxid = parameters['taxonomy']['taxonId']
+    lineage = parameters['taxonomy']['lineage']
+    
+    get_all_batches_parameters = {
+        'input_taxid': input_taxid,
+        'taxonomy': parameters['taxonomy'],
+        'selection': "RANDOM",
+        'strategy': "WGS",
+        'original_size_limits': parameters['size_limit'],
+        'runs_blacklist': set(),
+        'max_batch_count': parameters['max_batch_count'],
+        'optimal_only': False,
+        'exclude_input_species': False,
+    }
+    
+    get_all_batches_no_strategy_parameters = get_all_batches_parameters.copy()
+    get_all_batches_no_strategy_parameters['selection'] = None
+    get_all_batches_no_strategy_parameters['strategy'] = None    
+    
+    if len(parameters['all_batches']) < parameters['max_batch_count']:
+        batches, runs_blacklist = get_all_batches(get_all_batches_parameters, expanded=True)
+        parameters['all_batches'].extend(batches)
+        get_all_batches_parameters['runs_blacklist'].update(runs_blacklist)
+        get_all_batches_no_strategy_parameters['runs_blacklist'].update(runs_blacklist)
+    if len(parameters['all_batches']) < parameters['max_batch_count']:
+        batches, runs_blacklist = get_all_batches(get_all_batches_no_strategy_parameters, expanded=True)
+        parameters['all_batches'].extend(batches)        
+        get_all_batches_parameters['runs_blacklist'].update(runs_blacklist)
+        get_all_batches_no_strategy_parameters['runs_blacklist'].update(runs_blacklist)
+    return prioritize_batches(parameters['all_batches'], input_taxid, parameters['max_batch_count'], parameters['genome_size'])
 
-def get_url(url, max_attempts=3):
-    attempts = 0
-    while attempts < max_attempts:
-        try:
-            response = requests.get(url)
-            if response.ok:
-                return response
+def find_batches_along_lineage(parameters):
+    input_taxid = parameters['taxonomy']['taxonId']
+    lineage = parameters['taxonomy']['lineage'][1:]
+    
+    get_all_batches_parameters = {
+        'input_taxid': input_taxid,
+        'taxonomy': parameters['taxonomy'],
+        'selection': "RANDOM",
+        'strategy': "WGS",
+        'original_size_limits': parameters['size_limit'],
+        'runs_blacklist': set(),
+        'max_batch_count': parameters['max_batch_count'],
+        'optimal_only': False,
+        'exclude_input_species': True,
+    }
+    
+    get_all_batches_no_strategy_parameters = get_all_batches_parameters.copy()
+    get_all_batches_no_strategy_parameters['selection'] = None
+    get_all_batches_no_strategy_parameters['strategy'] = None
+    
+    max_batch_count = parameters['max_batch_count']
+    
+    for taxo in lineage:
+        get_all_batches_parameters['taxonomy'] = taxo
+        if (len(parameters['all_batches']) < max_batch_count) or not (any(batch['optimal_sequencing_set'] for batch in parameters['all_batches'])):
+            batches, runs_blacklist = get_all_batches(get_all_batches_parameters, expanded=True)
+            parameters['all_batches'].extend(batches)
+            get_all_batches_parameters['runs_blacklist'].update(runs_blacklist)
+            
+        if (len(parameters['all_batches']) < max_batch_count) or not (any(batch['optimal_sequencing_set'] for batch in parameters['all_batches'])):
+            alt_batches, runs_blacklist = get_all_batches(get_all_batches_no_strategy_parameters, expanded=True)
+            parameters['all_batches'].extend(alt_batches)
+            get_all_batches_parameters['runs_blacklist'].update(runs_blacklist)
+        if any(batch['optimal_sequencing_set'] for batch in parameters['all_batches']):
+            break
+        
+    return prioritize_batches(parameters['all_batches'], input_taxid, max_batch_count, parameters['genome_size'])
+
+def get_batches_for_species(parameters):
+    min_size, max_size = parameters['new_size_limits']
+    original_min_size, original_max_size = parameters['original_size_limits']
+    max_batch_size = 8    
+    runs = [run for run in parameters['runs'] if run['total_bases'] <= max_size]
+
+    runs = sorted(runs, key=lambda r: r['total_bases'], reverse=True)[:25]
+
+    batches = []
+    
+    for run in runs:
+        print(run['accession'], run['total_bases'], run['size'], run['taxid'], run['scientific_name'], run['strategy'], run['selection'])
+
+    if min_size == 0 and runs:
+        batch = []
+        total_size_bases = 0
+        for run in runs:
+            if total_size_bases < max_size and run['accession'] not in parameters['runs_blacklist']:
+                batch.append(run)
+                total_size_bases += run['total_bases']
             else:
-                response.raise_for_status()
-        except Exception as e:
-            attempts += 1
-            print(f"Attempt {attempts} failed for URL: {url}. Error: {e}")
-            if attempts < max_attempts:
-                print("Retrying in 5 seconds...")
-                time.sleep(5)
-            else:
-                print(f"Max attempts reached. Failed to fetch URL: {url}")
-                raise e
+                break
+            batch_accessions = [run['accession'] for run in batch]
+            
+            total_size_gb = sum(run['size'] for run in batch)
+            batches.append({
+                "runs": batch,
+                "total_size_bases": total_size_bases,
+                "total_size_gb": total_size_gb,
+                "taxid": batch[0]['taxid'],
+                "scientific_name": batch[0]['scientific_name'],
+                "optimal_sequencing_set": False,
+                "optimal_size": 0,
+            })
+            parameters['runs_blacklist'].update(batch_accessions)
+            
+            return batches, parameters['runs_blacklist']
 
-    return response
+    for batch_size in range(1, max_batch_size + 1):
+        for batch in combinations(runs, batch_size):
+            batch_accessions = [run['accession'] for run in batch]
+            if any(accession in parameters['runs_blacklist'] for accession in batch_accessions):
+                continue
+            total_size_bases = sum(run['total_bases'] for run in batch)
+            total_size_gb = sum(run['size'] for run in batch)
 
-# Estimations:
-# 1,000,000,000,000 --> 255.9Gb
-# 300,000,000,000 --> 63.8Gb
-# 100,000,000,000 --> 34,4Gb X
-# 50,000,000,000 --> 11.2Go
+            optimal_size = 1
+            if original_min_size <= total_size_bases <= original_max_size:
+                optimal_size = 2
 
+            all_classic = all(run["strategy"] == 'WGS' and run["selection"] == 'RANDOM' for run in batch)
+            is_optimal = optimal_size == 2 and all_classic
+            if min_size <= total_size_bases <= max_size and (not parameters['optimal_only'] or is_optimal):
+                batches.append({
+                    "runs": batch,
+                    "total_size_bases": total_size_bases,
+                    "total_size_gb": total_size_gb,
+                    "taxid": batch[0]['taxid'],
+                    "scientific_name": batch[0]['scientific_name'],
+                    "optimal_sequencing_set": is_optimal,
+                    "optimal_size": optimal_size,
+                })
+                parameters['runs_blacklist'].update(batch_accessions)
+                if len(batches) >= parameters['max_batch_count']:
+                    return batches, parameters['runs_blacklist']
+
+    return batches, parameters['runs_blacklist']
+
+def get_all_batches(parameters, expanded):
+    synonyms = [parameters['taxonomy']['scientificName']] + parameters['taxonomy'].get('synonyms', [])
+    all_runs = []
+    # 1. Search for the input species and its synonyms
+    for species in synonyms:
+        all_runs.extend(fetch_runs_for_species(species, parameters))
+    
+    # 2. Generate batches for each species found
+    selected_batches = []
+    species_dict = group_runs_by_species(all_runs)
+    get_batches_for_species_parameters = {
+        'runs': [],
+        'original_size_limits': parameters['original_size_limits'],
+        'new_size_limits': parameters['original_size_limits'],
+        'runs_blacklist': parameters['runs_blacklist'],
+        'max_batch_count': parameters['max_batch_count'],
+        'optimal_only': parameters['optimal_only']
+    }
+    for taxid, runs in species_dict.items():
+        get_batches_for_species_parameters['runs'] = runs
+        batches, parameters['runs_blacklist'] = get_batches_for_species(get_batches_for_species_parameters)
+        selected_batches.extend(batches)
+        if len(selected_batches) >= parameters['max_batch_count']:
+            return selected_batches, parameters['runs_blacklist']
+
+    if expanded:
+        for new_size_limits in [(parameters['original_size_limits'][0] * 0.5, parameters['original_size_limits'][1] * 1.5), (0, parameters['original_size_limits'][1] * 2)]:
+            new_min = new_size_limits[0]
+            new_max = new_size_limits[1]
+            for taxid, runs in species_dict.items():
+                get_batches_for_species_parameters['runs'] = runs
+                get_batches_for_species_parameters['new_size_limits'] = (new_min, new_max)
+                batches, parameters['runs_blacklist'] = get_batches_for_species(get_batches_for_species_parameters)
+                selected_batches.extend(batches)
+                if len(selected_batches) >= parameters['max_batch_count']:
+                    return selected_batches, parameters['runs_blacklist']
+                
+    return selected_batches, parameters['runs_blacklist']
+
+    
+def prioritize_batches(batches, input_taxid, max_batch_count, genome_size):
+    # Batches of the input species first (even if not optimal)
+    input_batches = [batch for batch in batches if batch['taxid'] == str(input_taxid)]
+    other_batches = [batch for batch in batches if batch['taxid'] != str(input_taxid)]
+    
+    # Sort each group to prioritize optimal ones first
+    input_batches = sorted(input_batches, key=lambda x: not x['optimal_sequencing_set'])
+    other_batches = sorted(other_batches, key=lambda x: not x['optimal_sequencing_set'])
+    sorted_batches = input_batches + other_batches
+    
+    # Ensure there is at least one optimal batch in the final selection
+    final_batches = sorted_batches[:max_batch_count]
+    if not any(batch['optimal_sequencing_set'] for batch in final_batches):
+        for batch in sorted_batches:
+            if batch['optimal_sequencing_set']:
+                final_batches[-1] = batch
+                break
+    for batch in final_batches:
+        batch['assembly_expected_size'] = genome_size['mean']
+        batch['assembly_expected_size_stats'] = genome_size
+    return final_batches
+
+def get_dnaseq(data, restricted, max_batch_count=5):
+    taxonomy = data['taxonomy']
+    genome_size = get_genome_size(taxonomy)
+    size_limit = [genome_size['lower_bound'], genome_size['upper_bound']]
+    
+    find_batches_parameters = {
+        "taxonomy": taxonomy,
+        "size_limit": size_limit,
+        "genome_size": genome_size,
+        "all_batches": [],
+        "max_batch_count": max_batch_count
+    }
+    
+    if restricted:
+        return find_batches_for_input_taxonomy(find_batches_parameters)
+    
+    if 'dnaseq' in data:
+        find_batches_parameters['all_batches'] = data['dnaseq']
+
+    return find_batches_along_lineage(find_batches_parameters)
+
+def get_accession(accession):
+    instance = SraSearch(
+        accession=accession,
+        verbosity=3
+    )
+    instance.search()
+    df = instance.get_df()
+    if df.empty:
+        return None
+    columns_to_keep = [
+        "study_accession", "experiment_accession", "experiment_library_strategy",
+        "experiment_library_source", "experiment_library_selection", "sample_accession",
+        "sample_alias", "experiment_instrument_model", "run_1_size", "run_1_total_spots",
+        "experiment_alias", "experiment_design_description", "experiment_library_name",
+        "experiment_platform", "experiment_sample_descriptor_accession", "library_layout",
+        "run_1_alias", "run_1_base_A_count", "run_1_base_C_count", "run_1_base_G_count",
+        "run_1_base_N_count", "run_1_base_T_count", "study_alias", "study_study_abstract",
+        "study_study_title", "submission_center_name", "submission_lab_name", "run_1_accession",
+        "sample_taxon_id", "sample_scientific_name", "experiment_title", "run_1_total_bases"
+    ]
+
+    existing_columns = [col for col in columns_to_keep if col in df.columns]
+    df = df[existing_columns]
+    df.loc[:, 'run_1_size'] = df['run_1_size'].apply(lambda x: float(x) / (1024 ** 3) if pd.notna(x) else None)
+    df = rename_columns(df)
+    df['optimal_platform'] = df['platform'].apply(lambda x: x in ['ILLUMINA', 'BGISEQ', 'ION_TORRENT'])
+    df['optimal_strategy'] = df['strategy'] == 'WGS'
+    df['optimal_selection'] = df['selection'] == 'RANDOM'
+    if df is not None and not df.empty:
+        return df.iloc[0].to_dict()
+    return None
+            

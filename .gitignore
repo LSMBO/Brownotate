@@ -33,6 +33,8 @@ runs/*
 output_runs/*
 uploads/*
 user_download/*
+!user_download/tmp/
+!user_download/tmp/.gitkeep
 Brownaming-1.0.0/runs/*
 stats/transrate.py
 stats/*odb10/

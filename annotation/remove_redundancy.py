@@ -1,38 +1,65 @@
 from Bio import SeqIO
+import os
+from timer import timer
+from utils import load_config
+from flask import Blueprint, request, jsonify
 
-def remove_redundancy(annotation, mode):
-    if mode == 1:
-        result = remove_duplicate_sequences(annotation)
-    if mode == 2:
-        result = remove_redundancy_and_subsequences(annotation)
-    return result
+run_remove_redundancy_bp = Blueprint('run_remove_redundancy_bp', __name__)
 
-def remove_duplicate_sequences(annotation):
-    sequences = {}
-    with open(annotation, "r") as handle:
-        for record in SeqIO.parse(handle, "fasta"):
+@run_remove_redundancy_bp.route('/run_remove_redundancy', methods=['POST'])
+def run_remove_redundancy():
+    start_time = timer.start()
+    parameters = request.json.get('parameters')
+    annotation_file = request.json.get('annotation_file')
+    
+    if parameters['annotationSection']['removeStrict']:
+        result = remove_duplicate_sequences(annotation_file)
+    else: # parameters['annotationSection']['removeSoft']
+        result = remove_redundancy_and_subsequences(annotation_file)
+
+    return jsonify({'status': 'success', 'data': result, 'timer': timer.stop(start_time)}), 200
+
+def remove_duplicate_sequences(annotation_file):
+    sequences = []
+    sequence_removed = 0
+    filtered_records = []
+
+    with open(annotation_file, "r") as f:
+        for record in SeqIO.parse(f, "fasta"):
             sequence = str(record.seq)
-            if sequence not in sequences:
-                sequences[sequence] = record
-    with open(annotation, "w") as handle:
-        SeqIO.write(sequences.values(), handle, "fasta")
-    return annotation
+            if not any(sequence == existing_seq for existing_seq in sequences):
+                sequences.append(sequence)
+                filtered_records.append(record)
+            else:
+                sequence_removed += 1
 
-def remove_redundancy_and_subsequences(annotation):
-    sequences = {}
-    with open(annotation, "r") as handle:
-        for record in SeqIO.parse(handle, "fasta"):
+    with open(annotation_file, "w") as f:
+        SeqIO.write(filtered_records, f, "fasta")
+
+    return {
+        'annotation_file': annotation_file,
+        'sequence_removed': sequence_removed
+    }
+
+    
+def remove_redundancy_and_subsequences(annotation_file):
+    sequences = []
+    sequence_removed = 0
+    filtered_records = []
+
+    with open(annotation_file, "r") as f:
+        for record in SeqIO.parse(f, "fasta"):
             sequence = str(record.seq)
-            found = False
-            for existing_seq in sequences:
-                if sequence in existing_seq:
-                    found = True
-                    break
-                elif existing_seq in sequence:
-                    del sequences[existing_seq]
-                    break
-            if not found:
-                sequences[sequence] = record
-    with open(annotation, "w") as handle:
-        SeqIO.write(sequences.values(), handle, "fasta")
-    return annotation
+            if not any(sequence in existing_seq or existing_seq in sequence for existing_seq in sequences):
+                sequences.append(sequence)
+                filtered_records.append(record)
+            else:
+                sequence_removed += 1
+
+    with open(annotation_file, "w") as f:
+        SeqIO.write(filtered_records, f, "fasta")
+
+    return {
+        'annotation_file': annotation_file,
+        'sequence_removed': sequence_removed
+    }

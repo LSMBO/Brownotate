@@ -4,6 +4,7 @@ from utils import load_config
 from flask_app.file_ops import create_download_folder
 import subprocess
 from datetime import datetime
+from timer import timer
 
 merge_fasta_files_bp = Blueprint('merge_fasta_files_bp', __name__)
 
@@ -13,6 +14,7 @@ env['PATH'] = os.path.join(config['BROWNOTATE_ENV_PATH'], 'bin') + os.pathsep + 
 
 @merge_fasta_files_bp.route('/merge_fasta_files', methods=['POST'])
 def merge_fasta_files():
+    start_time = timer.start()
     files = request.json.get('files')
 
     try:
@@ -36,7 +38,7 @@ def merge_fasta_files():
         ]
         print(' '.join(cdhit_command))
         subprocess.run(cdhit_command, check=True, env=env)
-        return jsonify({'status': 'success', 'path': server_filename}), 200
+        return jsonify({'status': 'success', 'path': server_filename, 'timer': timer.stop(start_time)}), 200
 
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500 

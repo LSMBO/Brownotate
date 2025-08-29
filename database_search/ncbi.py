@@ -1,143 +1,131 @@
-import sys
-import requests
-from ftp import ncbi
-from database_search.uniprot import UniprotTaxo
+import subprocess
+import os
+import json
+from utils import load_config
 
-CONFIG = None
+config = load_config()
+env = os.environ.copy()
+env['PATH'] = os.path.join(config['BROWNOTATE_ENV_PATH'], 'bin') + os.pathsep + env['PATH']
 
-def get_headers(config=None):
-    if config:
-        email = config['email']
-    else:
-        email = CONFIG['email']
-    
-    return {
-        "Email": email,
-        "User-Agent": "Brownotate/1.0.0"
-    }
 
-def getTaxonID(scientific_name, config=None):
-    headers = get_headers(config)
-    
-    params = {
-        "db": "taxonomy",
-        "term": scientific_name,
-        "retmode": "json",
-    }
-    
-    url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch"
-    
-    try:
-        response = requests.get(url, headers=headers, params=params)
-        response.raise_for_status()
-        data = response.json()
-        
-        taxon_ids = data.get("esearchresult", {}).get("idlist", [])
-        if taxon_ids:
-            return taxon_ids[0]
-    except Exception as e:
-        print("Connection to NCBI servers failed. Please try again later.", file=sys.stderr)
-        sys.exit(1)
-
+def fetch_taxonomy_data(taxid):
+    taxid = str(taxid)
+    command = [
+        "datasets", 
+        "summary", 
+        "taxonomy", 
+        "taxon", taxid
+    ]
+    result = subprocess.run(command, capture_output=True, text=True, check=True, env=env)
+    result = json.loads(result.stdout).get("reports", [])    
+    if result:
+        taxonomy_data = None
+        for res in result:
+            if res['taxonomy']['tax_id'] == int(taxid):
+                taxonomy_data = res['taxonomy']
+                break
+        if taxonomy_data:
+            taxonomy_data['taxonId'] = taxonomy_data.pop('tax_id')
+            classification = taxonomy_data['classification']
+            lineage = []
+            for rank in reversed(list(classification.keys())):
+                taxo = classification[rank]
+                lineage.append({
+                    "rank": rank,
+                    "scientificName": taxo["name"],
+                    "taxonId": taxo["id"]
+                })
+            taxonomy_data['lineage'] = lineage
+            return taxonomy_data
     return None
-
-def exploreDatabase(data_type, scientific_names, bank):
-    for scientific_name in scientific_names:
-        term = f"{scientific_name}[Organism]"
-        if data_type == "proteins":
-            term += " AND has_annotation[filter]"
-        if bank == "refseq":
-            term += " AND has_annotation[filter] AND latest[filter]"
-
-        headers = get_headers()
         
-        params = {
-            "db": "assembly",
-            "term": term,
-            "retmode": "json",
-            "retmax": 10000,
-        }
-        
-        url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch"
-        try:
-            response = requests.get(url, headers=headers, params=params)
-            response.raise_for_status()
-            data = response.json()
-            ids = data.get("esearchresult", {}).get("idlist", [])
-            
-            if ids:
-                for assembly_id in ids:
-                    results = fetchAssemblyDetails(assembly_id, data_type, bank)
-                    if results:
-                        return results
-        except Exception as e:
-            print("Connection to NCBI servers failed. Please try again later.", file=sys.stderr)
-            sys.exit(1)
-    return {}
 
-def fetchAssemblyDetails(assembly_id, data_type, bank):    
-    headers = get_headers()
-
-    params = {
-        "db": "assembly",
-        "id": assembly_id,
-        "retmode": "json",
-    }
-
-    url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary"
-    
+def fetch_ncbi_genomes(taxid, assembly_source, assembly_level, annotated, limit):
+    command = [
+        "datasets", 
+        "summary", 
+        "genome", 
+        "taxon", str(taxid),
+        "--assembly-source", assembly_source,
+        "--assembly-level", assembly_level,
+    ]
+    if annotated:
+        command.append("--annotated")
+    command += ["--limit", str(limit)]
     try:
-        response = requests.get(url, headers=headers, params=params)
-        response.raise_for_status()
-        data = response.json()
-        
-        assembly_summary = data.get("result", {}).get(assembly_id, {})
-        
-        if assembly_summary:
-            if bank == 'refseq' and assembly_summary.get("refseq_category") == 'na':
-                return {}
+        result = subprocess.run(command, capture_output=True, text=True, check=True, env=env)
+        return json.loads(result.stdout).get("reports", [])
+    
+    except subprocess.CalledProcessError as e:
+        return []
+
+def set_genome_data(genome, is_annotated, assembly_source):
+    accession = genome["accession"]
+    genome_data = {
+        "database": "NCBI",
+        "accession": accession,
+        "scientific_name": genome["organism"]["organism_name"],
+        "taxid": genome["organism"]["tax_id"],
+        'url': f"https://www.ncbi.nlm.nih.gov/datasets/genome/{accession}/"
+    }
+    
+    download_command = ["datasets", "download", "genome", "accession", accession]
+    
+    if is_annotated:
+        genome_data["data_type"] = f"ncbi_{assembly_source}_proteins"
+        download_command += ["--filename", f"{accession}_annotation.zip", "--include", "protein"]
+        if "busco" in genome["annotation_info"]:
+            busco = round(100 * (genome["annotation_info"]["busco"]["complete"] + genome["annotation_info"]["busco"]["duplicated"]))
+            genome_data['busco'] = f"{busco}%"
+        else:
+            genome_data['busco'] = None
             
-            accessions = assembly_summary.get("synonym", {}).get(bank, None)
-            ftp_path = assembly_summary.get(f"ftppath_{bank}", None)
-
-            if ftp_path and accessions:
-                ftp_path_split = ftp_path.split('/')
-                ftp_url = '/'.join(ftp_path_split[3:])
-                ftp_results = ncbi.getDataFromFTP(ftp_url, data_type)
-                
-                if ftp_results:
-                    return {
-                        "accession": accessions,
-                        "entrez_id": assembly_id,
-                        "url": f"{ftp_url}/{ftp_results}",
-                        "ftp": "ftp.ncbi.nlm.nih.gov",
-                        "data_type": data_type,
-                        "database": bank,
-                        "scientific_name": assembly_summary.get("speciesname"),
-                    }
-    except Exception as e:
-        print("Connection to NCBI servers failed. Please try again later.", file=sys.stderr)
-        sys.exit(1)
+    else:
+        download_command += ["--filename", f"{accession}_assembly.zip", "--include", "genome"]
+        genome_data["assembly_level"] = genome["assembly_info"]["assembly_level"]
+        genome_data["assembly_length"] = genome['assembly_stats']['total_sequence_length']
+        genome_data["data_type"] = f"ncbi_{assembly_source}_genome"
     
-    return {}
+    genome_data["download_command"] = download_command
+    return genome_data
 
-def getBetterNCBI(scientific_name, taxonomy, bank, data_type, search_similar_species=False, config=None):
-    global CONFIG
-    CONFIG = config
-    results = exploreDatabase(data_type, [scientific_name], bank)
-    if not search_similar_species or "url" in results:
-        if "url" in results:
-            results["taxonId"] = getTaxonID(results["scientific_name"])  
-        return results
-    
-    lineage_taxo_ids = [object['taxonId'] for object in reversed(taxonomy.get("lineage", []))]
-    exclude_ids = []
-    for taxo_id in lineage_taxo_ids:
-        children = UniprotTaxo.fetch_children(taxo_id, exclude_ids, "scientificName")
-        exclude_ids.extend(children)
-        results = exploreDatabase(data_type, children, bank)
-        if results:
-            taxonId = getTaxonID(results["scientific_name"])
-            results["taxonId"] = taxonId
-            return results
-    return {}
+
+def get_ncbi_genomes(data, assembly_source, limit=999):
+    annotated_genomes = []
+    genomes = []
+    output_annotated_genomes = []
+    output_genomes = []
+    for taxo in data['taxonomy']['lineage']:
+        # First search for annotated genomes, if a genome is annotated, it will also have an assembled DNA version
+        for level in ["chromosome", "complete", "scaffold", "contig"]:
+            if len(annotated_genomes) >= limit:
+                break
+            results = fetch_ncbi_genomes(taxo['taxonId'], assembly_source, level, True, limit-len(genomes))
+            annotated_genomes += results
+            genomes += results
+        
+        if len(genomes) < limit:
+            # If we don't have enough genomes, search for unannotated genomes
+            for level in ["chromosome", "complete", "scaffold", "contig"]:
+                if len(genomes) >= limit:
+                    break
+                results = fetch_ncbi_genomes(taxo['taxonId'], assembly_source, level, False, limit)
+                for result in results:
+                    if result not in genomes:
+                        genomes.append(result)
+        
+        if annotated_genomes and not output_annotated_genomes:
+            for annotated_genome in annotated_genomes:
+                annotated_genome_data = set_genome_data(annotated_genome, True, assembly_source)
+                output_annotated_genomes.append(annotated_genome_data)
+
+        if genomes and not output_genomes:
+            for genome in genomes:
+                genome_data = set_genome_data(genome, False, assembly_source)
+                output_genomes.append(genome_data)
+        
+        if output_annotated_genomes and output_genomes:
+            return output_annotated_genomes, output_genomes
+        
+    return output_annotated_genomes, output_genomes
+

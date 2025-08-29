@@ -1,62 +1,111 @@
-import subprocess
 import os
 import copy
+from timer import timer
+from utils import load_config
+from flask import Blueprint, request, jsonify
+from flask_app.commands import run_command
 
-def filter_phix_files(sequencing_files, state):
-    output_data = copy.deepcopy(sequencing_files)
-    for seq in output_data:
-        library_type="paired"
-        if len(seq["file_name"])==1:
-            library_type="single"
-        files = seq["file_name"]
-        output_files = runPhix(library_type, files, state['run_id'], state['args']['cpus']) 
-        for i in range(len(output_files)):
-            output_files[i] = os.path.abspath(output_files[i])
-        seq["file_name"] = output_files      
-    return output_data
+run_remove_phix_bp = Blueprint('run_remove_phix_bp', __name__)
+config = load_config()
+env = os.environ.copy()
+env['PATH'] = os.path.join(config['BROWNOTATE_ENV_PATH'], 'bin') + os.pathsep + env['PATH']
 
-        
-def runPhix(library_type, file_names, run_id, cpus):
-    if not os.path.exists("seq"):
-        os.makedirs("seq")
-    output_name = getOuputName(file_names)    
-    if (library_type == "paired"):
-        command = getPairedCommand(file_names, output_name, cpus)
-    else:
-        library_type = "single"
-        command = getSingleCommand(file_names, output_name, cpus)
-        
-    bowtie_log_path = "seq/bowtie2.log"
-    bowtie_log_null = "seq/null"
-    print(command)
-    with open(bowtie_log_path, 'w') as stderr:
-        with open(bowtie_log_null, 'w') as stdout:
-            subprocess.run(command, shell=True, check=True, stdout=stdout, stderr=stderr)
-
-    # Clean up
-    if os.path.exists("seq/null"):
-        os.remove("seq/null")
-        
-    if run_id in os.path.abspath(file_names[0]):
-        os.remove(file_names[0])
-        if library_type == "paired":
-            os.remove(file_names[1])
-    
-    if library_type == "paired":
-        output_name_1 = output_name.replace("_phix.fastq", "_phix.1.fastq")
-        output_name_2 = output_name.replace("_phix.fastq", "_phix.2.fastq")
-        return [output_name_1, output_name_2]
-    return [output_name]
-
-
-def getPairedCommand(file_names, output_name, cpus):
-    return f"bowtie2 -p {cpus} -x ../../phix/bt2_index_base -1 {file_names[0]} -2 {file_names[1]} --sensitive --un-conc {output_name} --mm -t"
-
-def getSingleCommand(file_names, output_name, cpus):
-    return f"bowtie2 -p {cpus} -x ../../phix/bt2_index_base -U {file_names[0]} --sensitive --un {output_name} --mm -t"
        
-def getOuputName(file_names):
-    if not os.path.exists("seq"):
-        os.makedirs("seq")
-    file_name = "seq/" + os.path.basename(file_names[0]).replace(".fq.gz", ".fastq.gz").replace(".fq", ".fastq").replace(".fastq", "_phix.fastq")
-    return file_name
+def get_paired_command(file_name, output_name, cpus):
+    return f"bowtie2 -p {cpus} -x phix/bt2_index_base -1 {file_name[0]} -2 {file_name[1]} --sensitive --un-conc {output_name} --mm -t"
+
+def get_single_command(file_name, output_name, cpus):
+    return f"bowtie2 -p {cpus} -x phix/bt2_index_base -U {file_name} --sensitive --un {output_name} --mm -t"
+       
+def get_output_name(file_name, layout, wd):
+    if layout == "SINGLE":
+        if file_name[0] == '"':
+            file_name = file_name[1:-1]
+        output_name = f"runs/{wd}/seq/" + os.path.basename(file_name).replace(".fq.gz", ".fastq.gz").replace(".fq", ".fastq").replace(".fastq", "_phix.fastq")
+        return f'"{output_name}"'
+    else:
+        if file_name[0][0] == '"':
+            file_name[0] = file_name[0][1:-1]
+            file_name[1] = file_name[1][1:-1]
+            
+        if '1_fastp' in file_name[0]:
+            file_name = file_name[0].replace("1_fastp", "_fastp").replace('__', '_')
+        elif '1.fastq' in file_name[0]:
+            file_name = file_name[0].replace("1.fastq", ".fastq").replace('__', '_')
+        elif '1.fq' in file_name[0]:
+            file_name = file_name[0].replace("1.fq", ".fq").replace('__', '_')
+        else:
+            file_name = file_name[0]
+        output_name = f"runs/{wd}/seq/" + os.path.basename(file_name).replace(".fq.gz", ".fastq.gz").replace(".fq", ".fastq").replace(".fastq", "_phix.fastq")
+        return f'"{output_name}"'
+
+@run_remove_phix_bp.route('/run_remove_phix', methods=['POST'])
+def run_phix():
+    start_time = timer.start()
+    parameters = request.json.get('parameters')
+    wd = parameters['id']
+    cpus = parameters['cpus']
+    sequencing_file_list = request.json.get('sequencing_file_list')
+
+    output_files = []
+    if not os.path.exists(f"runs/{wd}/seq"):
+        os.makedirs(f"runs/{wd}/seq")
+        
+    for sequencing_file in sequencing_file_list:
+        accession = sequencing_file['accession']
+        file_name = sequencing_file['fastp_file_name'] if 'fastp_file_name' in sequencing_file else sequencing_file['file_name']
+        platform = sequencing_file['platform']
+        layout = 'PAIRED' if isinstance(file_name, list) and len(file_name) == 2 else 'SINGLE'
+        
+
+        output_name = get_output_name(file_name, layout, wd)    
+        if (layout == "PAIRED"):
+            command = get_paired_command(file_name, output_name, cpus)
+        else:
+            layout = "SINGLE"
+            command = get_single_command(file_name, output_name, cpus)
+            
+        bowtie_log_path = f"runs/{wd}/seq/bowtie2.log"
+        bowtie_log_null = f"runs/{wd}/seq/null"
+        
+        stdout, stderr, returncode = run_command(command, wd, cpus=cpus, stdout_path=bowtie_log_null, stderr_path=bowtie_log_path)
+        if returncode != 0:
+            return jsonify({
+                'status': 'error',
+                'message': f'bowtie2 failed for {accession}',
+                'command': command,
+                'stderr': stderr,
+                'stdout': stdout,
+                'timer': timer.stop(start_time)
+            }), 500        
+        
+        # Clean up
+        if os.path.exists(f"runs/{wd}/seq/null"):
+            os.remove(f"runs/{wd}/seq/null")
+        
+        updated_sequencing_file = copy.deepcopy(sequencing_file)
+        if layout == "PAIRED":
+            output_name_1 = output_name.replace("_phix.fastq", "_phix.1.fastq")
+            output_name_2 = output_name.replace("_phix.fastq", "_phix.2.fastq")
+            updated_sequencing_file['remove_phix_file_name'] = [output_name_1, output_name_2]
+            if str(wd) in file_name[0]:
+                if file_name[0][0] == '"':
+                    file_name[0] = file_name[0][1:-1]
+                    file_name[1] = file_name[1][1:-1]
+                os.remove(file_name[0])
+                os.remove(file_name[1])
+        else:
+            updated_sequencing_file['remove_phix_file_name'] = output_name
+            if str(wd) in file_name:
+                if file_name[0] == '"':
+                    file_name = file_name[1:-1]
+                os.remove(file_name)
+                
+        output_files.append(updated_sequencing_file)
+
+    print(f"retoure data: {output_files} et timer: {timer.stop(start_time)}")
+    return jsonify({
+        'status': 'success', 
+        'data': output_files, 
+        'timer': timer.stop(start_time)
+    }), 200

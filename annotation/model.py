@@ -1,88 +1,127 @@
+import subprocess
 import os
 import shutil
-import subprocess
 import json
+from timer import timer
+from utils import load_config
+from flask import Blueprint, request, jsonify
+import shutil
+from flask_app.commands import run_command
 
-base_dir = os.path.dirname(os.path.abspath(__file__))
-config_path = os.path.join(base_dir, '..', 'config.json')
-with open(config_path) as config_file:
-    config = json.load(config_file)
-
+run_model_bp = Blueprint('run_model_bp', __name__)
+config = load_config()
+env = os.environ.copy()
+env['PATH'] = os.path.join(config['BROWNOTATE_ENV_PATH'], 'bin') + os.pathsep + env['PATH']
 augustus_config_path = f"{config['BROWNOTATE_ENV_PATH']}/config"
 conda_bin_path = f"{config['BROWNOTATE_ENV_PATH']}/bin"
-
-env = os.environ.copy()
 env["AUGUSTUS_CONFIG_PATH"] = augustus_config_path
 
-def remove(file):
-    if os.path.exists(file):
-        os.remove(file)
+@run_model_bp.route('/run_model', methods=['POST'])
+def run_model():
+    start_time = timer.start()
+    parameters = request.json.get('parameters')
+    genesraw = request.json.get('genesraw')
+    wd = parameters['id']
 
-def model(genesraw):
     remove_zero_bp_genes(genesraw)
-    run_id = os.path.basename(os.getcwd())
-    command = f"\nperl {conda_bin_path}/new_species.pl --species={run_id}"
-    if os.path.exists(f"{augustus_config_path}/species/{run_id}"):
-        shutil.rmtree(f"{augustus_config_path}/species/{run_id}")
-    try:
-        print(command)
-        subprocess.run(command, shell=True, check=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except subprocess.CalledProcessError as e:
-        print(f"Error: Exit code not null : {e.returncode}")
-        print(f"Standard output : {e.stdout.decode()}")
-        print(f"Error output : {e.stderr.decode()}")
-        exit()
+    command = f"\nperl {conda_bin_path}/new_species.pl --species={wd}"
+    if os.path.exists(f"{augustus_config_path}/species/{wd}"):
+        shutil.rmtree(f"{augustus_config_path}/species/{wd}")
+    
+    stdout, stderr, returncode = run_command(command, wd, env=env)
+    if returncode != 0:          
+        return jsonify({
+            'status': 'error',
+            'message': f'new_species.pl command failed',
+            'command': command,
+            'stderr': stderr,
+            'stdout': stdout,
+            'timer': timer.stop(start_time)
+        }), 500    
 
-    cfg_parameter_file = augustus_config_path + "/species/" + run_id + "/" + run_id + "_parameters.cfg"
+    cfg_parameter_file = f"{augustus_config_path}/species/{wd}/{wd}_parameters.cfg"
 
-    bonafide_path = "annotation/bonafide.out"
-    bonafide_path_stderr = "annotation/bonafide.err"
-    command = f"etraining --species={run_id} {genesraw}"
-    print(command)
-    with open(bonafide_path, 'w') as stdout:
-        with open(bonafide_path_stderr, 'w') as stderr:
-            subprocess.run(command, shell=True, check=True, env=env, stdout=stdout, stderr=stderr)
+    bonafide_stdout_path = f"runs/{wd}/annotation/bonafide.out"
+    bonafide_stderr_path = f"runs/{wd}/annotation/bonafide.err"
+    command = f"etraining --species={wd} {genesraw}"
+    
+    stdout, stderr, returncode = run_command(command, wd, stdout_path=bonafide_stdout_path, stderr_path=bonafide_stderr_path, env=env)
+    if returncode != 0:          
+        return jsonify({
+            'status': 'error',
+            'message': f'etraining command failed',
+            'command': command,
+            'stderr': stderr,
+            'stdout': stdout,
+            'timer': timer.stop(start_time)
+        }), 500    
 
-    command = f"grep -c \"Variable stopCodonExcludedFromCDS set right\" annotation/bonafide.err"
-    print(command)
-    num_stop = int(subprocess.run(command, stdout=subprocess.PIPE, shell=True).stdout.decode().strip())
+    # By default the gene model considers that genes end with a stop codon (stopCodonExcludedFromCDS=false). 
+    # If more than 50% of the genes (from genes.raw.gb) do not end with a stop codon (in bonafide.err), we change the parameter in the configuration file.
+    command = f"grep -c \"Variable stopCodonExcludedFromCDS set right\" {bonafide_stderr_path}"
+    num_genes_without_stop_codon = int(subprocess.run(command, stdout=subprocess.PIPE, shell=True).stdout.decode().strip()) # Number of genes not ending with a stop codon
 
     command = f"grep -c LOCUS {genesraw}"
-    print(command)
     num_locus = int(subprocess.run(command, stdout=subprocess.PIPE, shell=True).stdout.decode().strip())
-    if num_stop > num_locus/2:
+    
+    if num_genes_without_stop_codon > num_locus/2:
+        print(f"More than 50% of the genes do not end with a stop codon ({num_genes_without_stop_codon}>({num_locus}/2)). Changing the parameter stopCodonExcludedFromCDS to true in {cfg_parameter_file}")
         change_cfg_stop(cfg_parameter_file)
+        
+        command = f"etraining --species={wd} {genesraw}" # Re-run etraining after changing the parameter
+        stdout, stderr, returncode = run_command(command, wd, stdout_path=bonafide_stdout_path, stderr_path=bonafide_stderr_path, env=env)
+        if returncode != 0:          
+            return jsonify({
+                'status': 'error',
+                'message': f'etraining command failed',
+                'command': command,
+                'stderr': stderr,
+                'stdout': stdout,
+                'timer': timer.stop(start_time)
+            }), 500    
     
-    badlst_path = "annotation/bad.lst"
-    badlst_path_stderr = "annotation/bad.lst.err"
-    command = f"etraining --species={run_id} {genesraw} 2>&1 | grep \"in sequence\" | perl -pe 's/.*n sequence (\S+):.*/$1/' | sort -u"
-    print(command)
-
-    with open(badlst_path, 'w') as stdout:
-        with open(badlst_path_stderr, 'w') as stderr:
-            subprocess.run(command, shell=True, check=True, env=env, stdout=stdout, stderr=stderr)
-
-    genes_gb_path = "annotation/genes.gb"
-    genes_gb_path_stderr = "annotation/genes.gb.err"
-    command = f"perl {conda_bin_path}/filterGenes.pl annotation/bad.lst {genesraw} > annotation/genes.gb"
-    print(command)
-
-    with open(genes_gb_path, 'w') as stdout:
-        with open(genes_gb_path_stderr, 'w') as stderr:
-            subprocess.run(command, shell=True, check=True, env=env, stdout=stdout, stderr=stderr)
+    badlst_path = f"runs/{wd}/annotation/bad.lst"
     
-    command = f"grep -c LOCUS annotation/genes.gb"
-    print(command)
+    command = f"cat {bonafide_stderr_path} | perl -pe 's/.*in sequence (\S+): .*/$1/' | sort -u" # Extract the list of bad genes from bonafide.err
+    stdout, stderr, returncode = run_command(command, wd, stdout_path=badlst_path, env=env)
+    if returncode != 0:          
+        return jsonify({
+            'status': 'error',
+            'message': f'Command failed',
+            'command': command,
+            'stderr': stderr,
+            'stdout': stdout,
+            'timer': timer.stop(start_time)
+        }), 500
+
+    genes_gb_path = f"runs/{wd}/annotation/genes.gb"
+    genes_gb_path_stderr = f"runs/{wd}/annotation/genes.gb.err"
+    
+    command = f"perl {conda_bin_path}/filterGenes.pl {badlst_path} {genesraw}" # Filter out bad genes from genes.raw.gb
+    stdout, stderr, returncode = run_command(command, wd, stdout_path=genes_gb_path, stderr_path=genes_gb_path_stderr, env=env)
+    if returncode != 0:
+        return jsonify({
+            'status': 'error',
+            'message': f'filterGenes command failed',
+            'command': command,
+            'stderr': stderr,
+            'stdout': stdout,
+            'timer': timer.stop(start_time)
+        }), 500
+
+    command = f"grep -c LOCUS runs/{wd}/annotation/genes.raw.gb"
+    num_genes_raw = int(subprocess.run(command, stdout=subprocess.PIPE, shell=True).stdout.decode().strip())
+    print(f"Number of genes genes.raw.gb: {num_genes_raw}")
+    
+    command = f"grep -c LOCUS runs/{wd}/annotation/genes.gb"
     num_genes = int(subprocess.run(command, stdout=subprocess.PIPE, shell=True).stdout.decode().strip())
-
-    remove("annotation/bad.lst")
-    remove("annotation/bad.lst.err")
-    remove("annotation/bonafide.out")
-    remove("annotation/bonafide.err")
-    remove("annotation/genes.raw.gb")
-    remove("annotation/genes.gb.err")
-    return num_genes
-    
+    print(f"Number of genes genes.gb: {num_genes}")
+          
+    return jsonify({
+        'status': 'success', 
+        'data': num_genes, 
+        'timer': timer.stop(start_time)
+    }), 200
     
 def change_cfg_stop(cfg_parameter_file):
     with open(cfg_parameter_file, "r") as file:

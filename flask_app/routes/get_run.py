@@ -4,7 +4,7 @@ from flask_app.database import find_one
 get_run_bp = Blueprint('get_run_bp', __name__)
 
 @get_run_bp.route('/get_run', methods=['POST'])
-def get_user_runs():
+def get_run():
     run_id = request.json.get('run_id')
     if not run_id:
         return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400

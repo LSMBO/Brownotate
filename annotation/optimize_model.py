@@ -1,48 +1,89 @@
-import subprocess
 import os
 import re
 import json
+from timer import timer
+from utils import load_config
+from flask import Blueprint, request, jsonify
+from flask_app.commands import run_command
+import shutil
 
-base_dir = os.path.dirname(os.path.abspath(__file__))
-config_path = os.path.join(base_dir, '..', 'config.json')
-with open(config_path) as config_file:
-    config = json.load(config_file)
 
+run_optimize_model_bp = Blueprint('run_optimize_model_bp', __name__)
+config = load_config()
+env = os.environ.copy()
+env['PATH'] = os.path.join(config['BROWNOTATE_ENV_PATH'], 'bin') + os.pathsep + env['PATH']
 augustus_config_path = f"{config['BROWNOTATE_ENV_PATH']}/config"
 conda_bin_path = f"{config['BROWNOTATE_ENV_PATH']}/bin"
-
-env = os.environ.copy()
 env["AUGUSTUS_CONFIG_PATH"] = augustus_config_path
 
-def optimize_model(num_genes):
-    genes_file = "annotation/genes.gb"
-    run_id = os.path.basename(os.getcwd())
+@run_optimize_model_bp.route('/run_optimize_model', methods=['POST'])
+def run_optimize_model():
+    start_time = timer.start()
+    parameters = request.json.get('parameters')
+    num_genes = request.json.get('num_genes')
+    wd = parameters['id']
+    cpus = parameters['cpus']
     
-    if num_genes > 5000:
-        command = f"perl {conda_bin_path}/randomSplit.pl {genes_file} 5000"
-        print(command)
-        subprocess.run(command, shell=True, check=True, env=env)
-        genes_file = "annotation/genes.gb.train"
-        
-    command = f"perl {conda_bin_path}/optimize_augustus.pl --species={run_id} --cpus=12 --kfold=8 --onlytrain {genes_file}"
-    print(command)
-    subprocess.run(command, shell=True, check=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    command = f"etraining --species={run_id} {genes_file} &> annotation/etrain.out"
+    genes_file = f"runs/{wd}/annotation/genes.gb"
     
-    
-    etrain_path = "annotation/etrain.out"
-    etrain_path_stderr = "annotation/etrain.err"
-    command = f"etraining --species={run_id} {genes_file}"
-    print(command)
+    if num_genes > 300:
+        command = f"perl {conda_bin_path}/randomSplit.pl {genes_file} 300"
+        stdout, stderr, returncode = run_command(command, wd)
+        if returncode != 0:          
+            return jsonify({
+                'status': 'error',
+                'message': f'randomSplit.pl command failed',
+                'command': command,
+                'stderr': stderr,
+                'stdout': stdout,
+                'timer': timer.stop(start_time)
+            }), 500    
 
-    with open(etrain_path, 'w') as stdout:
-        with open(etrain_path_stderr, 'w') as stderr:
-            subprocess.run(command, shell=True, check=True, env=env, stdout=stdout, stderr=stderr)
-
+        train_genes_file = "genes.gb.train"
+        test_genes_file = "genes.gb.test"
+        command = f"perl {conda_bin_path}/optimize_augustus.pl --species={wd} --cpus={cpus} --kfold={cpus} --cleanup=1 --onlytrain={train_genes_file} {test_genes_file}"
+    else:
+        command = f"perl {conda_bin_path}/optimize_augustus.pl --species={wd} --cpus={cpus} --kfold={cpus} --cleanup=1 {os.path.basename(genes_file)}"
+    
+    os.chdir(f"runs/{wd}/annotation")
+    stdout, stderr, returncode = run_command(command, wd, cpus=cpus, stdout_path="optimize.out", env=env)
+    os.chdir(f"../../..")
+    if returncode != 0:          
+        return jsonify({
+            'status': 'error',
+            'message': f'optimize_augustus.pl command failed',
+            'command': command,
+            'stderr': stderr,
+            'stdout': stdout,
+            'timer': timer.stop(start_time)
+        }), 500    
+    
+    etrain_path = f"runs/{wd}/annotation/etrain.out"
+    
+    etrain_out = f"runs/{wd}/annotation/etrain.out"
+    etrain_err = f"runs/{wd}/annotation/etrain.err"
+    command = f"etraining --species={wd} --stopCodonExcludedFromCDS=true {genes_file}"
+    stdout, stderr, returncode = run_command(command, wd, stdout_path=etrain_out, stderr_path=etrain_err)
+    if returncode != 0:          
+        return jsonify({
+            'status': 'error',
+            'message': f'etraining command failed',
+            'command': command,
+            'stderr': stderr,
+            'stdout': stdout,
+            'timer': timer.stop(start_time)
+        }), 500    
+    
     tag, taa, tga = get_stop_proba(etrain_path)
-    cfg_parameter_file = augustus_config_path + "/species/" + run_id + "/" + run_id + "_parameters.cfg"
+    print(f"Extracted stop codon probabilities: tag={tag}, taa={taa}, tga={tga}")
+    cfg_parameter_file = f"{augustus_config_path}/species/{wd}/{wd}_parameters.cfg"
     change_cfg_stop_prob(cfg_parameter_file, tag, taa, tga)
-    clean()
+    # clean(wd)
+    
+    return jsonify({
+        'status': 'success', 
+        'timer': timer.stop(start_time)
+    }), 200
 
 def get_stop_proba(etrainout_file):
     with open(etrainout_file, "r") as file:
@@ -74,6 +115,6 @@ def change_cfg_stop_prob(cfg_parameter_file, tag, taa, tga):
                 line = f"/Constant/opalprob                    {tga}   # Prob(stop codon = tga)\n"
             file.write(line)
 
-def clean():
-    os.remove("annotation/etrain.out")
-    os.remove("annotation/genes.gb")
+def clean(wd):
+    os.remove(f"runs/{wd}/annotation/etrain.out")
+    os.remove(f"runs/{wd}/annotation/genes.gb")

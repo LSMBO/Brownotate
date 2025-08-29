@@ -1,62 +1,86 @@
 import shutil
 import os, sys
-import subprocess
 import json
 import csv
+from timer import timer
+from utils import load_config
+from flask import Blueprint, request, jsonify
+from flask_app.commands import run_command
 
-def busco(input_file, taxo, mode, cpus, custom=False):
-    output_rep = "busco_genome"
-    if custom:
-        output_rep = "busco_custom_genome"
+run_busco_bp = Blueprint('run_busco_bp', __name__)
+config = load_config()
+env = os.environ.copy()
+env['PATH'] = os.path.join(config['BROWNOTATE_ENV_PATH'], 'bin') + os.pathsep + env['PATH']
+
+@run_busco_bp.route('/run_busco', methods=['POST'])
+def run_busco():
+    start_time = timer.start()
+    parameters = request.json.get('parameters')
+    wd = parameters['id']
+    cpus = parameters['cpus']
+    mode = request.json.get('mode')
+    input_file = request.json.get('input_file')
+    taxo = parameters['species']
+
+    output_rep = f"runs/{wd}/busco_genome"
     if mode == "proteins":
-        output_rep = "busco_annotation"
-        if custom:
-            output_rep = "busco_custom_annotation"
+        output_rep = f"runs/{wd}/busco_annotation"
+
     if os.path.exists(output_rep):
         shutil.rmtree(output_rep)
         
     busco_lineage = get_busco_lineage(taxo)
-    if os.path.exists(f"../../stats/{busco_lineage}"):
-        busco_lineage_path = f"../../stats/{busco_lineage}"
-        command = get_command(cpus, input_file, output_rep, mode, busco_lineage_path, True)
+    if os.path.exists(f"stats/{busco_lineage}"):
+        busco_lineage_path = f"stats/{busco_lineage}"
+        command = get_command(cpus, input_file, output_rep, mode, busco_lineage_path, True, wd)
     else:
-        command = get_command(cpus, input_file, output_rep, mode, busco_lineage, False)     
-    
-    print(command)
-    with open('log_bin', 'w') as log_bin:
-        process = subprocess.run(command, shell=True, check=True, stdout=log_bin, stderr=subprocess.PIPE, text=True)
-        if process.stderr:
-            print("Error: ", process.stderr)
-    
-    lineage_dir = f"busco_downloads/lineages/{busco_lineage}"
+        command = get_command(cpus, input_file, output_rep, mode, busco_lineage, False, wd) 
+
+    stdout, stderr, returncode = run_command(command, wd, cpus=cpus, stdout_path=f"runs/{wd}/log_bin")
+    if returncode != 0:          
+        return jsonify({
+            'status': 'error',
+            'message': f'Busco command failed',
+            'command': command,
+            'stderr': stderr,
+            'stdout': stdout,
+            'timer': timer.stop(start_time)
+        }), 500    
+
+    lineage_dir = f"runs/{wd}/busco_downloads/lineages/{busco_lineage}"
     if os.path.exists(lineage_dir):
-        shutil.move(lineage_dir, f"../../stats/{busco_lineage}")
+        shutil.move(lineage_dir, f"stats/{busco_lineage}")
         
-    if os.path.exists("busco_downloads"):
-        shutil.rmtree("busco_downloads")
-    if os.path.exists("log_bin"):
-        os.remove("log_bin")
+    if os.path.exists(f"runs/{wd}/busco_downloads"):
+        shutil.rmtree(f"runs/{wd}/busco_downloads")
+    if os.path.exists(f"runs/{wd}/log_bin"):
+        os.remove(f"runs/{wd}/log_bin")
         
     result = get_busco_result(output_rep, busco_lineage)
     
     if os.path.exists(f"run_{busco_lineage}"):
         shutil.rmtree(f"run_{busco_lineage}")
 
-    if mode=='genome':
-        makeJson("Busco_genome.json", result)
+    if mode=='genome':    
+        make_json(f"runs/{wd}/Busco_genome.json", result)
+        
     else:
-        makeJson("Busco_annotation.json", result)
-    
-    return result
+        make_json(f"runs/{wd}/Busco_annotation.json", result)
 
-def makeJson(title, object):
+    return jsonify({
+        'status': 'success', 
+        'data': result, 
+        'timer': timer.stop(start_time)
+    }), 200
+
+def make_json(title, object):
     with open(title, "w") as f:
         json.dump(object, f)
 
 def get_busco_lineage(taxo):
     lineage_names = [entry['scientificName'].lower() for entry in taxo['lineage']]
 
-    with open("../../stats/busco_lineages.txt", 'r') as lineages_file:
+    with open("stats/busco_lineages.txt", 'r') as lineages_file:
         lines = lineages_file.readlines()
         
     lineage_tree = {}
@@ -78,10 +102,12 @@ def get_busco_lineage(taxo):
     
     return search_best_lineage(lineage_tree, lineage_names)
 
-def get_command(cpus, input_file, output_rep, mode, lineage, offline):
+def get_command(cpus, input_file, output_rep, mode, lineage, offline, wd):
+    download_path = f"runs/{wd}/busco_downloads"
+    base_cmd = f"busco -c {cpus} -i {input_file} -o {os.path.basename(output_rep)} -m {mode} -l {lineage} --out_path runs/{wd} --download_path {download_path} --metaeuk"
     if offline:
-        return f"busco -c {cpus} -i {input_file} -o {output_rep} -m {mode} -l {lineage} --metaeuk --offline"
-    return f"busco -c {cpus} -i {input_file} -o {output_rep} -m {mode} -l {lineage} --metaeuk"
+        return base_cmd + " --offline"
+    return base_cmd
 
 def get_full_table_path(output_rep, lineage):
     file_path = os.path.join(output_rep, f"run_{lineage}/full_table.tsv")

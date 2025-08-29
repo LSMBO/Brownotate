@@ -15,24 +15,29 @@ def upload_file():
     try:
         if 'file0' not in request.files:
             return jsonify({'status': 'error', 'message': 'No files found'}), 400
-        
         upload_folder = create_upload_folder()
         file_paths = handle_file_upload(request.files, upload_folder)
-        
+        if len(file_paths) == 1:
+            file_paths = file_paths[0]
         if file_type == "sequencing":
-            file_parameters = "parameters.startSection.sequencingFilesList"
+            file_parameters = "parameters.startSection.sequencingFileListOnServer"
         elif file_type == "assembly":
-            file_parameters = "parameters.startSection.genomeFileList"
+            file_parameters = "parameters.startSection.assemblyFileOnServer"
         elif file_type == "evidence":
-            file_parameters = "parameters.annotationSection.evidenceFileList"
+            file_parameters = "parameters.annotationSection.evidenceFileOnServer"
         else:
             return jsonify({'status': 'error', 'message': 'Invalid file type'}), 400
 
-        update_result = update_one(
-            'runs',
-            {'parameters.id': int(run_id)},
-            {'$set': {file_parameters: file_paths}}
-        )
+        query = {
+            "parameters.id": int(run_id)
+        }
+        update = {
+            "$set": {
+                file_parameters: file_paths
+            }
+        }
+        
+        update_result = update_one('runs', query, update)
         if update_result['status'] == 'success':
             return jsonify({'status': 'success', 'file_paths': file_paths}), 200
         else:
