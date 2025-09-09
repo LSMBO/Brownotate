@@ -1,6 +1,8 @@
-from flask_app.database import insert_one, find_one, find, update_one, delete_one
+from flask_app.database import insert_one, find_one, find, update_one, delete_one, delete
 import subprocess
 import psutil
+import signal
+import os
 import time
 
 def add_process(run_id, pid, command, cpus):
@@ -12,31 +14,60 @@ def add_process(run_id, pid, command, cpus):
         'status': 'running'
     })
 
-def get_process(run_id):
-    process = find_one('processes', {'run_id': run_id})
+def get_user_processes(run_id):
+    process = find('processes', {'run_id': run_id})
     return process['data']
 
-def remove_process(run_id):
-    delete_one('processes', {'run_id': run_id})
+def remove_user_processes(run_id):
+    delete('processes', {'run_id': run_id})
 
-def stop_process(run_id):
-    process_data = get_process(run_id)
+def remove_process(process_id):
+    delete_one('processes', {'process_id': process_id})
+
+def stop_user_processes(run_id):
+    process_data = get_user_processes(run_id)
     if process_data:
-        process_id = process_data['process_id']
-        process = subprocess.Popen(f"kill {process_id}", shell=True)
-        process.wait()
-        remove_process(run_id)
+        for pid in process_data:
+            stop_process(pid['process_id'])
+    remove_user_processes(run_id)
+        
+def stop_process(process_id):
+    try:
+        parent = psutil.Process(process_id)
+    except psutil.NoSuchProcess:
+        print(f"Parent process {process_id} not found")
+        return
+
+    children = parent.children(recursive=True)
+    targets = [parent] + children
+
+    for p in targets:
+        try:
+            p.send_signal(signal.SIGTERM)
+        except psutil.NoSuchProcess:
+            pass
+
+    gone, alive = psutil.wait_procs(targets, timeout=10)
+
+    for p in alive:
+        try:
+            print(f"Forcing kill of {p.pid}")
+            p.kill()
+        except psutil.NoSuchProcess:
+            pass
+
+    remove_process(process_id)
+    
 
 def check_process(run_id):
     process_data = None
     for attempt in range(3):
-        time.sleep(5)
-        process_data = get_process(run_id)
+        process_data = get_user_processes(run_id)
         if process_data:
             break
+        time.sleep(3)
         print(f"Run {run_id} not found in db.processes, attempt {attempt + 1}/3")
         
-    
     if not process_data:
         print(f"Run {run_id} not found in db.processes after 3 attempts")
         query = {'parameters.id': run_id}

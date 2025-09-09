@@ -32,9 +32,10 @@ runs/*
 !runs/.gitkeep
 output_runs/*
 uploads/*
-user_download/*
 !user_download/tmp/
 !user_download/tmp/.gitkeep
+!user_download/image_not_found.png
+user_download/*
 Brownaming-1.0.0/runs/*
 stats/transrate.py
 stats/*odb10/

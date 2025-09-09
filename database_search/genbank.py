@@ -13,6 +13,7 @@ def dbs_genbank():
     user = request.json.get('user')
     dbsearch = request.json.get('dbsearch')
     create_new_dbs = request.json.get('createNewDBS')
+    run_id = request.json.get('run_id', dbsearch['run_id'] if dbsearch else None)
 
     if not user or not dbsearch:
         return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
@@ -24,7 +25,7 @@ def dbs_genbank():
         'data': dbsearch['data']
     }
  
-    ncbi_genbank_annotated_genomes, ncbi_genbank_genomes = ncbi.get_ncbi_genomes(output_data['data'], "genbank")
+    ncbi_genbank_annotated_genomes, ncbi_genbank_genomes = ncbi.get_ncbi_genomes(output_data['data'], "genbank", run_id=run_id)
     output_data['data']['ncbi_genbank_annotated_genomes'] = ncbi_genbank_annotated_genomes
     output_data['data']['ncbi_genbank_genomes'] = ncbi_genbank_genomes
 

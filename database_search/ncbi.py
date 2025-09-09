@@ -2,62 +2,82 @@ import subprocess
 import os
 import json
 from utils import load_config
+from flask_app.commands import run_command
 
 config = load_config()
 env = os.environ.copy()
 env['PATH'] = os.path.join(config['BROWNOTATE_ENV_PATH'], 'bin') + os.pathsep + env['PATH']
 
 
-def fetch_taxonomy_data(taxid):
-    taxid = str(taxid)
-    command = [
-        "datasets", 
-        "summary", 
-        "taxonomy", 
-        "taxon", taxid
-    ]
-    result = subprocess.run(command, capture_output=True, text=True, check=True, env=env)
-    result = json.loads(result.stdout).get("reports", [])    
-    if result:
-        taxonomy_data = None
-        for res in result:
-            if res['taxonomy']['tax_id'] == int(taxid):
-                taxonomy_data = res['taxonomy']
-                break
-        if taxonomy_data:
-            taxonomy_data['taxonId'] = taxonomy_data.pop('tax_id')
-            classification = taxonomy_data['classification']
-            lineage = []
-            for rank in reversed(list(classification.keys())):
-                taxo = classification[rank]
-                lineage.append({
-                    "rank": rank,
-                    "scientificName": taxo["name"],
-                    "taxonId": taxo["id"]
-                })
-            taxonomy_data['lineage'] = lineage
-            return taxonomy_data
+def fetch_taxon_id(scientific_name, run_id):
+    command = f"datasets summary taxonomy taxon \"{scientific_name}\""
+    stdout, stderr, returncode = run_command(command, run_id, env=env)
+    if returncode != 0:          
+        return jsonify({
+            'status': 'error',
+            'message': f'ncbi datasets command failed',
+            'command': command,
+            'stderr': stderr,
+            'stdout': stdout,
+        }), 500 
+    if stdout.startswith('{'):
+        results = json.loads(stdout).get("reports", [])
+        if results:
+            return results[0]['taxonomy']['tax_id']
+    return None
+
+def fetch_taxonomy_data(taxid, run_id):
+    command = f"datasets summary taxonomy taxon {taxid}"
+
+    stdout, stderr, returncode = run_command(command, run_id, env=env)
+    if returncode != 0:          
+        return jsonify({
+            'status': 'error',
+            'message': f'ncbi datasets command failed',
+            'command': command,
+            'stderr': stderr,
+            'stdout': stdout,
+        }), 500 
+    if stdout.startswith('{'):
+        result = json.loads(stdout).get("reports", [])
+        if result:
+            if results[0]['taxonomy']['tax_id'] == int(taxid):
+                taxonomy_data = results[0]['taxonomy']
+                taxonomy_data['taxonId'] = taxonomy_data.pop('tax_id')
+                classification = taxonomy_data['classification']
+                lineage = []
+                for rank in reversed(list(classification.keys())):
+                    taxo = classification[rank]
+                    lineage.append({
+                        "rank": rank,
+                        "scientificName": taxo["name"],
+                        "taxonId": taxo["id"]
+                    })
+                taxonomy_data['lineage'] = lineage
+                return taxonomy_data
     return None
         
 
-def fetch_ncbi_genomes(taxid, assembly_source, assembly_level, annotated, limit):
-    command = [
-        "datasets", 
-        "summary", 
-        "genome", 
-        "taxon", str(taxid),
-        "--assembly-source", assembly_source,
-        "--assembly-level", assembly_level,
-    ]
+def fetch_ncbi_genomes(taxid, assembly_source, assembly_level, annotated, limit, run_id):
+    command = f"datasets summary genome taxon {taxid} --assembly-source {assembly_source} --assembly-level {assembly_level}"
     if annotated:
-        command.append("--annotated")
-    command += ["--limit", str(limit)]
-    try:
-        result = subprocess.run(command, capture_output=True, text=True, check=True, env=env)
-        return json.loads(result.stdout).get("reports", [])
+        command += " --annotated"
+    command += f" --limit {limit}"
     
-    except subprocess.CalledProcessError as e:
-        return []
+    stdout, stderr, returncode = run_command(command, run_id, env=env)
+    if returncode != 0:
+        return jsonify({
+            'status': 'error',
+            'message': f'ncbi datasets command failed',
+            'command': command,
+            'stderr': stderr,
+            'stdout': stdout,
+        }), 500    
+    if stdout.startswith('{'):
+        results = json.loads(stdout).get("reports", [])
+        return results
+    return []
+
 
 def set_genome_data(genome, is_annotated, assembly_source):
     accession = genome["accession"]
@@ -90,7 +110,7 @@ def set_genome_data(genome, is_annotated, assembly_source):
     return genome_data
 
 
-def get_ncbi_genomes(data, assembly_source, limit=999):
+def get_ncbi_genomes(data, assembly_source, run_id, limit=999):
     annotated_genomes = []
     genomes = []
     output_annotated_genomes = []
@@ -100,7 +120,7 @@ def get_ncbi_genomes(data, assembly_source, limit=999):
         for level in ["chromosome", "complete", "scaffold", "contig"]:
             if len(annotated_genomes) >= limit:
                 break
-            results = fetch_ncbi_genomes(taxo['taxonId'], assembly_source, level, True, limit-len(genomes))
+            results = fetch_ncbi_genomes(taxo['taxonId'], assembly_source, level, True, limit-len(genomes), run_id)
             annotated_genomes += results
             genomes += results
         
@@ -109,7 +129,7 @@ def get_ncbi_genomes(data, assembly_source, limit=999):
             for level in ["chromosome", "complete", "scaffold", "contig"]:
                 if len(genomes) >= limit:
                     break
-                results = fetch_ncbi_genomes(taxo['taxonId'], assembly_source, level, False, limit)
+                results = fetch_ncbi_genomes(taxo['taxonId'], assembly_source, level, False, limit, run_id)
                 for result in results:
                     if result not in genomes:
                         genomes.append(result)

@@ -104,7 +104,7 @@ def get_busco_lineage(taxo):
 
 def get_command(cpus, input_file, output_rep, mode, lineage, offline, wd):
     download_path = f"runs/{wd}/busco_downloads"
-    base_cmd = f"busco -c {cpus} -i {input_file} -o {os.path.basename(output_rep)} -m {mode} -l {lineage} --out_path runs/{wd} --download_path {download_path} --metaeuk"
+    base_cmd = f"busco -c {cpus} -i {input_file} -o {output_rep} -m {mode} -l {lineage} --out_path runs/{wd} --download_path {download_path} --metaeuk"
     if offline:
         return base_cmd + " --offline"
     return base_cmd

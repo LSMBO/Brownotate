@@ -1,38 +1,52 @@
 import subprocess
 import os
 import json
+import shlex
 from timer import timer
 from utils import load_config
 from flask import Blueprint, request, jsonify
 from flask_app.file_ops import create_download_folder
 from flask_app.process_manager import add_process, remove_process
+from flask_app.database import find_one
 
 download_sra_bp = Blueprint('download_sra_bp', __name__)
 config = load_config()
 env = os.environ.copy()
 env['PATH'] = os.path.join(config['SRA_DOWNLOAD_ENV_PATH'], 'bin') + os.pathsep + env['PATH']
 
-def run_command(cmd, env, wd):
+
+def run_command(command, env, wd):
+    if isAnnotationInProgress(wd) == False:
+        print("Annotation canceled. Stopping command execution.")
+        return None, None
+    # env['TMPDIR'] = f'runs/{wd}/tmp'
     retry_count = 0
     success = False
     stdout_data, stderr_data = None, None
+    process_id = None
 
     while retry_count < 5 and not success:
         try:
-            print(f"\n{cmd}")
-            process = subprocess.Popen(cmd, shell=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            add_process(wd, process, cmd, 1)
+            print(f"\n{command}")
+            command_args = shlex.split(command)
+            process = subprocess.Popen(command_args, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
+            process_id = process.pid
+            add_process(wd, process_id, command, 1)
             stdout_data, stderr_data = process.communicate()
             if process.returncode == 0:
                 success = True
             else:
-                retry_count += 1
-                print(f"Command failed with return code {process.returncode}. Retrying... ({retry_count}/5)")
+                if isAnnotationInProgress(wd):
+                    retry_count += 1
+                    print(f"Command failed with return code {process.returncode}. Retrying... ({retry_count}/5)")
+                else:
+                    print(f"Annotation canceled. Stopping retries.")
+                    return None, None
         except Exception as e:
             retry_count += 1
             print(f"Error while executing command: {e}. Retrying... ({retry_count}/5)")
-        finally:
-            remove_process(wd)
+            if process_id:
+                remove_process(process_id)
 
     if not success:
         print("Failed to execute command after 5 attempts.")
@@ -58,6 +72,7 @@ def download_sra():
 
         prefetch_cmd = f"prefetch {accession} -o runs/{wd}/seq/{accession}.sra --max-size 1500G"
         if not run_command(prefetch_cmd, env, wd):
+            print(f"Prefetch failed for {accession}")
             return jsonify({
                 'status': 'error', 
                 'message': f'Prefetch failed for {accession}', 
@@ -66,9 +81,9 @@ def download_sra():
 
         if platform in ["ILLUMINA", "ION_TORRENT", "454", "BGISEQ", "OXFORD_NANOPORE", "PACBIO_SMRT"]:
             if layout == "PAIRED":
-                fasterqdump_cmd = f"fasterq-dump runs/{wd}/seq/{accession}.sra --outdir runs/{wd}/seq --skip-technical --split-files"
+                fasterqdump_cmd = f"fasterq-dump runs/{wd}/seq/{accession}.sra --outdir runs/{wd}/seq --skip-technical --split-files --temp runs/{wd}/seq"
             else:
-                fasterqdump_cmd = f"fasterq-dump runs/{wd}/seq/{accession}.sra --outdir runs/{wd}/seq --skip-technical"
+                fasterqdump_cmd = f"fasterq-dump runs/{wd}/seq/{accession}.sra --outdir runs/{wd}/seq --skip-technical --temp runs/{wd}/seq"
             if not run_command(fasterqdump_cmd, env, wd):
                 return jsonify({
                     'status': 'error', 
@@ -103,3 +118,10 @@ def download_sra():
         'data': fastq_files,
         "timer": timer.stop(start_time)
     }), 200
+
+
+def isAnnotationInProgress(run_id):
+    run_results = find_one('runs', {'parameters.id': int(run_id)})
+    if run_results and run_results['data']:
+        return True
+    return False

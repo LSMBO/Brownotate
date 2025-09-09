@@ -1,6 +1,4 @@
 from flask import Blueprint, request, send_file
-import os
-import subprocess
 
 get_image_bp = Blueprint('get_image_bp', __name__)
 

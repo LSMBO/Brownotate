@@ -1,6 +1,5 @@
 from flask import Blueprint, request, jsonify
 from flask_app.database import insert_one
-from flask_app.extensions import socketio
 from flask_app.file_ops import create_wd_folder
 
 create_run_bp = Blueprint('create_run_bp', __name__)
@@ -21,7 +20,7 @@ def create_run():
 	run_data = {
 		'user': user,
 		'status': 'running',
-		'progress': 'Run created',
+		'progress': ['Run created'],
 		'parameters': parameters,
 		'run_id': run_id,
 		'stepList': step_list,
@@ -29,7 +28,6 @@ def create_run():
 	}
 
 	insert_result = insert_one('runs', run_data)
-	socketio.emit('runs_updated', {'run_id': run_id, 'status': 'upload'})
 
 	# create working directory
 	wd_folder = create_wd_folder(run_id)

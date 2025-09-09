@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_app.database import update_one
+from flask_app.database import update_one, find_one
 from flask_app.file_ops import move_wd_to_output_runs_folder
 import os
 import shutil
@@ -17,7 +17,15 @@ def set_annotation_completed():
             progress = "Annotation run completed successfully"
         else:
             progress = "Annotation stopped: insufficient genes identified during protein evidence comparison"
+
+        find_run_results = find_one('runs', {'parameters.id': int(run_id)})
+        if not find_run_results['data']:
+            return jsonify({'status': 'error', 'message': 'Run not found'}), 404
         
+        progress_list = find_run_results['data']['progress']
+        progress = progress_list + [progress]
+
+
         # Clean up assembly duplicated files
         for file in os.listdir(f"runs/{run_id}"):
             if file.endswith('_simplified.fasta') or (file.startswith('file_') and file.endswith('.fasta')):
@@ -26,6 +34,7 @@ def set_annotation_completed():
         output_run_path = move_wd_to_output_runs_folder(str(run_id))
         if progress == "Annotation run completed successfully":
             update_result = update_one('runs', {"parameters.id": int(run_id)}, {"$set": {"status": "completed", "progress": progress, "results_path": output_run_path}})
+            print(update_result)
         else:
             update_result = update_one('runs', {"parameters.id": int(run_id)}, {"$set": {"status": "incompleted", "progress": progress, "results_path": output_run_path}})
     else:

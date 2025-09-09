@@ -47,6 +47,9 @@ def insert_one(collection_name, query):
 def update_one(collection_name, query, update):
     try:
         collection = db[collection_name]
+        find_result = collection.find_one(query)
+        if not find_result:
+            return {'status': 'error', 'message': 'No documents matched the query'}
         result = collection.update_one(query, update)
         if result.matched_count > 0:
             return {'status': 'success'}
@@ -59,6 +62,17 @@ def delete_one(collection_name, query):
     try:
         collection = db[collection_name]
         result = collection.delete_one(query)
+        if result.deleted_count > 0:
+            return {'status': 'success', 'deleted_count': result.deleted_count}
+        else:
+            return {'status': 'error', 'message': 'No documents matched the query'}
+    except Exception as e:
+        return {'status': 'error', 'message': str(e)}
+
+def delete(collection_name, query):
+    try:
+        collection = db[collection_name]
+        result = list(collection.delete_many(query))
         if result.deleted_count > 0:
             return {'status': 'success', 'deleted_count': result.deleted_count}
         else:

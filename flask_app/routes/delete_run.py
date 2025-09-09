@@ -1,8 +1,7 @@
 import os, shutil
 from flask import Blueprint, request, jsonify
 from flask_app.database import find_one, delete_one
-from flask_app.extensions import socketio
-from flask_app.process_manager import stop_process
+from flask_app.process_manager import stop_user_processes
 from utils import load_config
 
 delete_run_bp = Blueprint('delete_run_bp', __name__)
@@ -15,36 +14,24 @@ def delete_run():
 		
 	if not run_id:
 		return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
-	
-	if os.path.exists(f'runs/{run_id}'):
-		shutil.rmtree(f'runs/{run_id}')
-
-	# Find the working_dir_id
-	query = {'parameters.id': int(run_id)}
-	result = find_one('runs', query)
-	if result['status'] != 'success' or not result['data']:
-		return jsonify({'status': 'error', 'message': 'Run not found'}), 404
-	run_data = result['data']
-	working_dir_id = run_data.get('working_dir_id')
- 
-	result = delete_one('runs', {'parameters.id': int(run_id)})
-	if result['status'] == 'success':
-		stop_process(run_id)
-		socketio.emit('runs_updated', {'run_id': run_id, 'status': 'deleted'})
-		if result.get('deleted_count', 0) > 0:
-			if working_dir_id:
-				working_dir = os.path.join(config['BROWNOTATE_PATH'], 'runs', str(working_dir_id))
-				if os.path.exists(working_dir):
-					shutil.rmtree(working_dir)
-				output_dir = os.path.join(config['BROWNOTATE_PATH'], 'output_runs', str(working_dir_id))
+	find_run_results = find_one('runs', {'parameters.id': int(run_id)})
+	delete_result = delete_one('runs', {'parameters.id': int(run_id)})
+	if delete_result['status'] == 'success':
+		stop_user_processes(run_id)
+		if delete_result.get('deleted_count', 0) > 0:
+			working_dir = os.path.join(config['BROWNOTATE_PATH'], 'runs', str(run_id))
+			if os.path.exists(working_dir):
+				shutil.rmtree(working_dir)
+			else:
+				output_dir = find_run_results['data']['results_path']
 				if os.path.exists(output_dir):
 					shutil.rmtree(output_dir)
-    
+	
 			return jsonify({'status': 'success', 'message': f'Run {run_id} deleted successfully'})
 		else:
 			return jsonify({'status': 'error', 'message': 'No run found with the specified ID'}), 404
 	return jsonify(result), 500
 
 
-				
+
 

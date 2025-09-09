@@ -2,7 +2,7 @@ import os
 from flask import Blueprint, request, jsonify
 from utils import load_config
 from flask_app.file_ops import create_download_folder
-import subprocess
+from flask_app.commands import run_command
 from datetime import datetime
 from timer import timer
 
@@ -16,7 +16,7 @@ env['PATH'] = os.path.join(config['BROWNOTATE_ENV_PATH'], 'bin') + os.pathsep + 
 def merge_fasta_files():
     start_time = timer.start()
     files = request.json.get('files')
-
+    run_id = request.json.get('run_id', None)
     try:
         download_folder = create_download_folder()
         timestamp = datetime.now().strftime('%H%M%S')
@@ -28,16 +28,20 @@ def merge_fasta_files():
                 with open(fasta_file, 'r') as infile:
                     outfile.write(infile.read())
 
-        cdhit_command = [
-            'cd-hit',
-            '-i', raw_merged_filename,
-            '-o', server_filename,
-            '-c', '1',
-            '-G', '0',
-            '-aL', '1'
-        ]
-        print(' '.join(cdhit_command))
-        subprocess.run(cdhit_command, check=True, env=env)
+
+        command = f"cd-hit -i {raw_merged_filename} -o {server_filename} -c 1 -G 0 -aL 1"
+        stdout, stderr, returncode = run_command(command, run_id, env=env)
+        if returncode != 0:          
+            return jsonify({
+                'status': 'error',
+                'message': f'Prokka command failed',
+                'command': command,
+                'stderr': stderr,
+                'stdout': stdout,
+                'timer': timer.stop(start_time)
+            }), 500    
+    
+        # subprocess.run(cdhit_command, check=True, env=env)
         return jsonify({'status': 'success', 'path': server_filename, 'timer': timer.stop(start_time)}), 200
 
     except Exception as e:

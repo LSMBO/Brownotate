@@ -13,6 +13,7 @@ def dbs_refseq():
     user = request.json.get('user')
     dbsearch = request.json.get('dbsearch')
     create_new_dbs = request.json.get('createNewDBS')
+    run_id = request.json.get('run_id', dbsearch['run_id'] if dbsearch else None)
     
     if not user or not dbsearch:
         return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
@@ -24,7 +25,7 @@ def dbs_refseq():
         'data': dbsearch['data']
     }
  
-    ncbi_refseq_annotated_genomes, ncbi_refseq_genomes = ncbi.get_ncbi_genomes(output_data['data'], "RefSeq")
+    ncbi_refseq_annotated_genomes, ncbi_refseq_genomes = ncbi.get_ncbi_genomes(output_data['data'], "RefSeq", run_id=run_id)
     output_data['data']['ncbi_refseq_annotated_genomes'] = ncbi_refseq_annotated_genomes
     output_data['data']['ncbi_refseq_genomes'] = ncbi_refseq_genomes
 

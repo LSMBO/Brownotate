@@ -4,20 +4,20 @@ import time
 import database_search.ncbi as ncbi
 
 class UniprotTaxo:
-    def __init__(self, taxid, reference_taxid=None):
+    def __init__(self, taxid, run_id, reference_taxid=None):
         try:
             self.taxid = int(taxid)
         except ValueError:
-            self.taxid = self.fetch_taxon_id(taxid)
+            self.taxid = self.fetch_taxon_id(taxid, run_id)
             if self.taxid is None:
                 print(f"Error: Invalid taxon ID or scientific name '{taxid}'.", file=sys.stderr)
                 raise ValueError(f"Invalid taxon ID or scientific name '{taxid}'.")
         self.reference_taxid = reference_taxid
         self.taxonomy = self.fetch_taxonomy_data(reference_taxid)
         if self.taxonomy is None:
-            self.taxonomy = ncbi.fetch_taxonomy_data(taxid)
+            self.taxonomy = ncbi.fetch_taxonomy_data(taxid, run_id)
 
-    def fetch_taxon_id(self, scientific_name):
+    def fetch_taxon_id(self, scientific_name, run_id):
         species_parts = scientific_name.lower().split(' ')
         scientific_name_join = "%20".join(species_parts)
         url = f"https://rest.uniprot.org/taxonomy/search?query=(scientific:%22{scientific_name_join}%22)&size=500&format=json"
@@ -29,6 +29,9 @@ class UniprotTaxo:
                 taxon_id = result.get("taxonId")
                 if scientific_name.lower() == res_scientific_name.lower():
                     return taxon_id
+        taxon_id = ncbi.fetch_taxon_id(scientific_name, run_id)
+        if taxon_id:
+            return taxon_id
         return None
     
     def fetch_scientific_name_and_rank(taxoId):

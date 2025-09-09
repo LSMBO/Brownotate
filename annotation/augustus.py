@@ -1,6 +1,6 @@
 import subprocess
 import os
-import multiprocessing
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import shutil
 from Bio import SeqIO
 import json
@@ -22,6 +22,7 @@ def run_augustus():
     start_time = timer.start()
     parameters = request.json.get('parameters')
     split_assembly_files = request.json.get('split_assembly_files')
+    cpus = parameters['cpus']
     wd = parameters['id']
     
     current_dir = os.getcwd()
@@ -31,17 +32,17 @@ def run_augustus():
     scientific_name = parameters['species']['scientificName']
     annotation_concatenated_file = f"runs/{wd}/annotation/{scientific_name.replace(' ', '_')}_Brownotate.fasta"
 
-    with multiprocessing.Pool() as pool:
+    with ThreadPoolExecutor(max_workers=cpus) as executor:
         results = []
         for i, assembly_file in enumerate(split_assembly_files):
             output_name = f"runs/{wd}/annotation/augustus/augustus_part{i+1}"
-            result = pool.apply_async(run_augustus_worker, args=(assembly_file, output_name, wd))
+            result = executor.submit(run_augustus_worker, assembly_file, output_name, wd)
             results.append(result)
  
         annotation_files = []
         error_response = None
-        for result in results:
-            res = result.get()
+        for result in as_completed(results):
+            res = result.result()
             if isinstance(res, dict) and res.get('status') == 'error':
                 error_response = res
                 break

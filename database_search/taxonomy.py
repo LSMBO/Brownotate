@@ -14,26 +14,26 @@ def dbs_taxonomy():
     create_new_dbs = request.json.get('createNewDBS')
     dbsearch = request.json.get('dbsearch')
     
-    scientific_name = dbsearch['scientific_name']
-    taxID = dbsearch['taxid']
-    
+    scientific_name = dbsearch['scientificName']
+    taxID = dbsearch['taxonId']
+    print(f"dbs_taxonomy: scientific_name={scientific_name}, taxID={taxID}")
     current_datetime = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
 
     if not user or not taxID:
         return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
     
-    run_id = f"DBS-{taxID}-{current_datetime}"
+    run_id = request.json.get('run_id', f"DBS-{taxID}-{current_datetime}")
     output_data = {
         'run_id': run_id,
         'status': 'taxonomy',
         'date': current_datetime,
         'data': {}
     }
-    taxo = UniprotTaxo(taxID)
+    taxo = UniprotTaxo(taxID, run_id=run_id)
     output_data['data']['taxonomy'] = taxo.get_taxonomy()
     taxo_image_url = wiki.download_species_image(output_data['data']['taxonomy']['scientificName'])
     output_data['data']['taxo_image_url'] = taxo_image_url
-
+    print(f"dbs_taxonomy results: {output_data['data']}")
     timer_str = timer.stop(start_time)
     print(f"Timer dbs_taxonomy: {timer_str}")
     output_data['data']['timer_taxonomy'] = timer_str

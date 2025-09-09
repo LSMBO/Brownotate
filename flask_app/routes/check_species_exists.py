@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 import database_search.wiki as wiki
-import requests
+from database_search.uniprot import UniprotTaxo
+
 
 check_species_exists_bp = Blueprint('check_species_exists_bp', __name__)
 
@@ -10,34 +11,11 @@ def check_species_exists():
     if not species:
         return jsonify({'status': 'error', 'message': 'Missing species parameter'}), 400
 
-    if (isinstance(species, str) and species.isnumeric()==False):
-        species_parts = species.lower().split(' ')
-        scientific_name = "%20".join(species_parts)
-        url = f"https://rest.uniprot.org/taxonomy/search?query=(scientific:%22{scientific_name}%22)&size=500&format=json"  
-    else:
-        url = f"https://rest.uniprot.org/taxonomy/search?query=(tax_id:{species})&size=500&format=json"
-        
-    response = requests.get(url)
-    if response.status_code == 200:
-        results = response.json()["results"]
-        for result in results:
-            scientific_name = result["scientificName"]
-            taxon_id = result["taxonId"]
-            lineage = result["lineage"]
-            if (str(taxon_id) == species or scientific_name.lower() == species.lower()):
-                is_bacteria = False
-                for taxon in lineage:
-                    if taxon["scientificName"] == "Bacteria":
-                        is_bacteria = True
-                        break
-                taxo_image_url = wiki.download_species_image(result["scientificName"])
-                output_data = {
-                    'scientific_name': result["scientificName"],
-                    'taxid': result["taxonId"],
-                    'lineage': result["lineage"],
-                    'is_bacteria': is_bacteria,
-                    'taxo_image_url': taxo_image_url
-                }
-                return jsonify({'status': 'success', 'results': output_data}), 200
+    taxo = UniprotTaxo(species, run_id='check_species_exists')
+    if taxo:
+        output_data = taxo.get_taxonomy()
+        taxo_image_url = wiki.download_species_image(output_data['scientificName'])
+        output_data['taxo_image_url'] = taxo_image_url
+        return jsonify({'status': 'success', 'results': output_data}), 200
 
     return jsonify({'status': 'error', 'message': f"\nTaxo \"{species}\" not found."}), 500
