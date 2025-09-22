@@ -26,6 +26,26 @@ def taxo(species):
                 return result 
     return None
 
+def commonAncestor(query_taxo, subject_species):
+    subject_taxo = taxo(subject_species)
+    
+    if (subject_taxo is None):
+        return None, None
+    
+    query_lineage = query_taxo["lineage"]
+    subject_lineage = subject_taxo["lineage"]
+    
+    common_ancestor_name = None
+    common_ancestor_rank = None
+    for q, s in zip(query_lineage, subject_lineage):
+        if q["taxonId"] == s["taxonId"]:
+            common_ancestor_name = q["scientificName"]
+            common_ancestor_rank = q["rank"]
+        else:
+            break
+    
+    return common_ancestor_name, common_ancestor_rank
+
 def downloadFasta(all_lineage, index, exclude, file_name):
     if (index>0):
         exclude.append(all_lineage[index-1]["taxonId"])

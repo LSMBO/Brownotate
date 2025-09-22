@@ -19,7 +19,6 @@ def run_command(command, env, wd):
     if isAnnotationInProgress(wd) == False:
         print("Annotation canceled. Stopping command execution.")
         return None, None
-    # env['TMPDIR'] = f'runs/{wd}/tmp'
     retry_count = 0
     success = False
     stdout_data, stderr_data = None, None
@@ -51,6 +50,8 @@ def run_command(command, env, wd):
     if not success:
         print("Failed to execute command after 5 attempts.")
         return None, None
+    
+    remove_process(process_id)
     return stdout_data.decode('utf-8'), stderr_data.decode('utf-8')
 
 

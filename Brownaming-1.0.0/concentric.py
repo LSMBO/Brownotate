@@ -25,7 +25,7 @@ def concentric(blast_reader_files, fasta_file, out_blast, out_stats, out_id_map,
                     match.append("False")
                 result_hashmap[query_accession].append(match)
 
-    output_tab = [["Query accession", "Subject accession", "Subject description", "Species", "Gene name", "Bitscore", "Evalue", "Identity", "Similarity", "Best hit"]] 
+    output_tab = [["Query accession", "Subject accession", "Subject description", "Species", "Common Ancestor name", "Common Ancestor rank", "Gene name", "Bitscore", "Evalue", "Identity", "Similarity", "Best hit"]] 
     for query, match in result_hashmap.items():
         for m in match:
             line = [query]  

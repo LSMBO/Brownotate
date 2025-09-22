@@ -23,19 +23,19 @@ def run_busco():
     taxo = parameters['species']
 
     output_rep = f"runs/{wd}/busco_genome"
+    output_rep_name = "busco_genome"
     if mode == "proteins":
         output_rep = f"runs/{wd}/busco_annotation"
-
+        output_rep_name = "busco_annotation"
     if os.path.exists(output_rep):
         shutil.rmtree(output_rep)
         
     busco_lineage = get_busco_lineage(taxo)
     if os.path.exists(f"stats/{busco_lineage}"):
         busco_lineage_path = f"stats/{busco_lineage}"
-        command = get_command(cpus, input_file, output_rep, mode, busco_lineage_path, True, wd)
+        command = get_command(cpus, input_file, output_rep_name, mode, busco_lineage_path, True, wd)
     else:
-        command = get_command(cpus, input_file, output_rep, mode, busco_lineage, False, wd) 
-
+        command = get_command(cpus, input_file, output_rep_name, mode, busco_lineage, False, wd) 
     stdout, stderr, returncode = run_command(command, wd, cpus=cpus, stdout_path=f"runs/{wd}/log_bin")
     if returncode != 0:          
         return jsonify({
@@ -50,14 +50,12 @@ def run_busco():
     lineage_dir = f"runs/{wd}/busco_downloads/lineages/{busco_lineage}"
     if os.path.exists(lineage_dir):
         shutil.move(lineage_dir, f"stats/{busco_lineage}")
-        
     if os.path.exists(f"runs/{wd}/busco_downloads"):
         shutil.rmtree(f"runs/{wd}/busco_downloads")
     if os.path.exists(f"runs/{wd}/log_bin"):
         os.remove(f"runs/{wd}/log_bin")
         
     result = get_busco_result(output_rep, busco_lineage)
-    
     if os.path.exists(f"run_{busco_lineage}"):
         shutil.rmtree(f"run_{busco_lineage}")
 

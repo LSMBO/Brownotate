@@ -3,13 +3,13 @@ import re
 from Bio import SeqIO
 import table
 
-def blast_reader(blast_file, min_bitscore=0, max_evalue=10000, min_identity=0, min_similarity=0, top=3, output=None, format="xlsx"):
+def blast_reader(blast_file, min_bitscore=0, max_evalue=10000, min_identity=0, min_similarity=0, top=3, output=None, format="xlsx", ancestor_name=None, ancestor_rank=None):
     if not output:
         output = "Blast_reader_on_"+os.path.basename(blast_file)
     blast_tab = fileToTab(blast_file)
     
-    OUTPUT_TAB_HEADER = ["Query accession", "Query description", "Subject accession", "Subject description", "Species", "Gene name", "Bitscore", "Evalue", "Identity", "Similarity", "Start", "Stop"]
-    OUTPUT_TAB = get_table(blast_tab, min_bitscore, max_evalue, min_identity, min_similarity, top)
+    OUTPUT_TAB_HEADER = ["Query accession", "Query description", "Subject accession", "Subject description", "Species", "Common ancestor name", "Common ancestor rank", "Gene name", "Bitscore", "Evalue", "Identity", "Similarity", "Start", "Stop"]
+    OUTPUT_TAB = get_table(blast_tab, min_bitscore, max_evalue, min_identity, min_similarity, top, ancestor_name, ancestor_rank)
     OUTPUT_TAB.insert(0, OUTPUT_TAB_HEADER)
     
     if os.path.exists(output):
@@ -23,7 +23,7 @@ def blast_reader(blast_file, min_bitscore=0, max_evalue=10000, min_identity=0, m
         
     return output
 
-def get_table(blast_tab, min_bitscore, max_evalue, min_identity, min_similarity, top):
+def get_table(blast_tab, min_bitscore, max_evalue, min_identity, min_similarity, top, ancestor_name, ancestor_rank):
     tab = []
     for i in range(len(blast_tab)):
         line = blast_tab[i]
@@ -77,7 +77,7 @@ def get_table(blast_tab, min_bitscore, max_evalue, min_identity, min_similarity,
                     and all(x not in subject for x in ["Uncharacterized", "uncharacterized", "---NA", "Hypothetical", "hypothetical", "PREDICTED:"])
                     and subject != "Partial"):
                 
-                tab.append([query_accession, query_description, subject_accession, subject, species, gene_name, bitscore, evalue, identity, similarity, start, stop])
+                tab.append([query_accession, query_description, subject_accession, subject, species, ancestor_name, ancestor_rank, gene_name, bitscore, evalue, identity, similarity, start, stop])
     return tab
 
 def fileToTab(file):

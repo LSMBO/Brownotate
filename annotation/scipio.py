@@ -109,7 +109,7 @@ def blat(run_id, assembly_file, evidence_file, protgenomepsl, scipioyaml, flex=F
     process_id = None
     try:
         command_args = shlex.split(command)
-        process = subprocess.Popen(command_args, check=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
+        process = subprocess.Popen(command_args, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
         process_id = process.pid
         add_process(run_id, process_id, command, 1)
         stdout, stderr = process.communicate()
@@ -128,7 +128,7 @@ def extract_gff_from_yaml(run_id, scipioyaml, scipioscipiogff, scipiogff):
         process_id = None
         try:
             command_args = shlex.split(command)
-            process = subprocess.Popen(command_args, check=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
+            process = subprocess.Popen(command_args, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
             process_id = process.pid
             add_process(run_id, process_id, command, 1)
             stdout, stderr = process.communicate()            
@@ -144,7 +144,7 @@ def extract_gff_from_yaml(run_id, scipioyaml, scipioscipiogff, scipiogff):
     process_id = None
     try:
         command_args = shlex.split(command)
-        process = subprocess.Popen(command_args, check=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
+        process = subprocess.Popen(command_args, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
         process_id = process.pid
         add_process(run_id, process_id, command, 1)
         stdout, stderr = process.communicate()          
@@ -160,7 +160,7 @@ def gff_to_genbank(run_id, assembly_file, genesrawgb, scipiogff):
     process_id = None
     try:
         command_args = shlex.split(command)
-        process = subprocess.Popen(command_args, check=True, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
+        process = subprocess.Popen(command_args, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
         process_id = process.pid
         add_process(run_id, process_id, command, 1)
         stdout, stderr = process.communicate()        

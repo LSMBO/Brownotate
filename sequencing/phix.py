@@ -9,7 +9,6 @@ run_remove_phix_bp = Blueprint('run_remove_phix_bp', __name__)
 config = load_config()
 env = os.environ.copy()
 env['PATH'] = os.path.join(config['BROWNOTATE_ENV_PATH'], 'bin') + os.pathsep + env['PATH']
-
        
 def get_paired_command(file_name, output_name, cpus):
     return f"bowtie2 -p {cpus} -x phix/bt2_index_base -1 {file_name[0]} -2 {file_name[1]} --sensitive --un-conc {output_name} --mm -t"
@@ -48,9 +47,13 @@ def run_phix():
     sequencing_file_list = request.json.get('sequencing_file_list')
 
     output_files = []
-    if not os.path.exists(f"runs/{wd}/seq"):
-        os.makedirs(f"runs/{wd}/seq")
-        
+    seq_tmpdir = os.path.abspath(f"runs/{wd}/seq")
+    if not os.path.exists(seq_tmpdir):
+        os.makedirs(seq_tmpdir)
+
+    local_env = os.environ.copy()
+    local_env['TMPDIR'] = seq_tmpdir
+
     for sequencing_file in sequencing_file_list:
         accession = sequencing_file['accession']
         file_name = sequencing_file['fastp_file_name'] if 'fastp_file_name' in sequencing_file else sequencing_file['file_name']
@@ -68,7 +71,7 @@ def run_phix():
         bowtie_log_path = f"runs/{wd}/seq/bowtie2.log"
         bowtie_log_null = f"runs/{wd}/seq/null"
         
-        stdout, stderr, returncode = run_command(command, wd, cpus=cpus, stdout_path=bowtie_log_null, stderr_path=bowtie_log_path)
+        stdout, stderr, returncode = run_command(command, wd, cpus=cpus, env=local_env, stdout_path=bowtie_log_null, stderr_path=bowtie_log_path)
         if returncode != 0:
             return jsonify({
                 'status': 'error',
@@ -103,7 +106,6 @@ def run_phix():
                 
         output_files.append(updated_sequencing_file)
 
-    print(f"retoure data: {output_files} et timer: {timer.stop(start_time)}")
     return jsonify({
         'status': 'success', 
         'data': output_files, 

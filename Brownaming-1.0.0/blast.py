@@ -4,6 +4,14 @@ from blast_reader import blast_reader
 
 def parallel_blast(protein_file, database_file, output_file, cpus, short=False):
     db_name = make_blast_db(database_file)
+    try:
+        base_name = os.path.basename(database_file).rsplit(".", 1)[0]
+        parts = base_name.split("_")
+        ancestor_name = "_".join(parts[1:-1]) if len(parts) > 2 else parts[1]
+        ancestor_rank = parts[-1]
+    except (ValueError, IndexError):
+        ancestor_name, ancestor_rank = None, None
+
     protein_files = fasta_split(protein_file, "split", cpus)
     
     if os.path.exists("blast"):
@@ -23,9 +31,9 @@ def parallel_blast(protein_file, database_file, output_file, cpus, short=False):
             results_files.append(result.get())
         concatenate_files(results_files, "blast/merged")
         if short:
-            blast_reader_res = blast_reader(blast_file="blast/merged", output=output_file, max_evalue=0.4, format="csv")
+            blast_reader_res = blast_reader(blast_file="blast/merged", output=output_file, max_evalue=0.4, format="csv", ancestor_name=ancestor_name, ancestor_rank=ancestor_rank)
         else:
-            blast_reader_res = blast_reader(blast_file="blast/merged", output=output_file, min_bitscore=50, format="csv")
+            blast_reader_res = blast_reader(blast_file="blast/merged", output=output_file, min_bitscore=50, format="csv", ancestor_name=ancestor_name, ancestor_rank=ancestor_rank)
         if not os.path.exists(blast_reader_res):
             return "NOMATCH"
         testIsEmpty = open(blast_reader_res, 'r')
