@@ -2,6 +2,7 @@ import subprocess
 import os
 import shutil
 import json
+import re
 from timer import timer
 from utils import load_config
 from flask import Blueprint, request, jsonify
@@ -78,19 +79,38 @@ def run_model():
                 'stderr': stderr,
                 'stdout': stdout,
                 'timer': timer.stop(start_time)
-            }), 500    
+            }), 500
     
     badlst_path = f"runs/{wd}/annotation/bad.lst"
+    temp_path2 = f"runs/{wd}/annotation/bad_temp2.txt"
     
-    command = f"cat {bonafide_stderr_path} | perl -pe 's/.*in sequence (\S+): .*/$1/' | sort -u" # Extract the list of bad genes from bonafide.err
-    stdout, stderr, returncode = run_command(command, wd, stdout_path=badlst_path, env=env)
-    if returncode != 0:          
+    try:
+        if not os.path.exists(bonafide_stderr_path):
+            print(f"ERROR: {bonafide_stderr_path} does not exist")
+            with open(badlst_path, 'w') as f:
+                f.write("")
+        else:
+            pattern = re.compile(r'.*in sequence (\S+): .*')
+            sequences = set()
+            
+            with open(bonafide_stderr_path, 'r') as infile:
+                try:
+                    for line in infile:
+                        match = pattern.match(line)
+                        if match:
+                            sequences.add(match.group(1))
+                except Exception as e:
+                    print(f"Error during file reading: {str(e)}")
+            
+            with open(badlst_path, 'w') as outfile:
+                for seq in sorted(sequences):
+                    outfile.write(f"{seq}\n")
+            
+    except Exception as e:
         return jsonify({
             'status': 'error',
-            'message': f'Command failed',
-            'command': command,
-            'stderr': stderr,
-            'stdout': stdout,
+            'message': f'Error during problematic sequence processing',
+            'stderr': str(e),
             'timer': timer.stop(start_time)
         }), 500
 

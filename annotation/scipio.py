@@ -7,7 +7,7 @@ import shlex
 from timer import timer
 from utils import load_config
 from flask import Blueprint, request, jsonify
-from flask_app.process_manager import add_process, remove_process
+from flask_app.process_manager import add_process, remove_process, remove_run_processes
 import shutil
 import traceback
 
@@ -28,12 +28,6 @@ def run_scipio():
     cpus = parameters['cpus']
     split_assembly_files = request.json.get('split_assembly_files')
 
-    # temp code to fake the process
-    # shutil.copy('runs/fake_run/annotation/genes.raw.gb', f'runs/{run_id}/annotation/genes.raw.gb')
-    # return jsonify({'status': 'success', 'data': f'runs/{run_id}/annotation/genes.raw.gb', 'timer': timer.stop(start_time)}), 200
-    ##
-    
-
     with ThreadPoolExecutor(max_workers=cpus) as executor:
         results = []
         for i, assembly_file in enumerate(split_assembly_files):
@@ -50,17 +44,17 @@ def run_scipio():
         for result in as_completed(results):
             res = result.result()
             if res.startswith('Error:'):
-                remove_process(run_id)
+                remove_run_processes(run_id)
                 return jsonify({'status': 'error', 'message': res[7:], 'timer': timer.stop(start_time)}), 500
             if not os.path.exists(res):
-                remove_process(run_id)
+                remove_run_processes(run_id)
                 return jsonify({'status': 'error', 'message': f'File not found: {res}', 'timer': timer.stop(start_time) }), 500
             genesraw_files.append(res)
         
         genesraw = f"runs/{run_id}/annotation/genes.raw.gb" 
         concatenate_files(genesraw_files, genesraw)
         # clean(split_assembly_files, run_id)
-        remove_process(run_id)
+        remove_run_processes(run_id)
         return jsonify({'status': 'success', 'data': genesraw, 'timer': timer.stop(start_time)}), 200
         
 def run_scipio_worker(run_id, assembly_file, evidence_file, work_dir):
@@ -101,42 +95,44 @@ def run_flexible_scipio_worker(run_id, assembly_file, evidence_file, work_dir):
         
 def blat(run_id, assembly_file, evidence_file, protgenomepsl, scipioyaml, flex=False):
     if not flex:
-        command = f'perl {scipio_script_path}/scipio.1.4.1.pl --blat_output={protgenomepsl} {assembly_file} {evidence_file} > {scipioyaml}'
+        command = f'perl {scipio_script_path}/scipio.1.4.1.pl --blat_output={protgenomepsl} {assembly_file} {evidence_file}'
     else:
-        command = f'perl {scipio_script_path}/scipio.1.4.1.pl --blat_output={protgenomepsl} --min_identity=50 --min_coverage=50 --min_score=0.2 {assembly_file} {evidence_file} > {scipioyaml}'
+        command = f'perl {scipio_script_path}/scipio.1.4.1.pl --blat_output={protgenomepsl} --min_identity=50 --min_coverage=50 --min_score=0.2 {assembly_file} {evidence_file}'
     
     print(f"\n({os.path.basename(os.path.dirname(scipioyaml))})  {command}")
     process_id = None
     try:
         command_args = shlex.split(command)
-        process = subprocess.Popen(command_args, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
-        process_id = process.pid
-        add_process(run_id, process_id, command, 1)
-        stdout, stderr = process.communicate()
+        with open(scipioyaml, "wb") as out:
+            process = subprocess.Popen(command_args, env=env, text=True, stdout=out, stderr=subprocess.PIPE, preexec_fn=os.setsid)
+            process_id = process.pid
+            add_process(run_id, process_id, command, 1)
+            _, stderr = process.communicate()
     except subprocess.CalledProcessError as e:
         return f'Error: scipio failed for command {command}. stderr: {e.stderr.decode() if e.stderr else ""}'
     finally:
         if process_id:
-            remove_process(run_id, process_id=process_id)
+            remove_process(process_id)
     
     
 def extract_gff_from_yaml(run_id, scipioyaml, scipioscipiogff, scipiogff):
     if not os.path.exists(scipioscipiogff) or os.path.getsize(scipioscipiogff) == 0:
-        command = f"cat {scipioyaml} | perl {scipio_script_path}/yaml2gff.1.4.pl > {scipioscipiogff}"
+        command = f"perl {scipio_script_path}/yaml2gff.1.4.pl"
         
         print(f"\n({os.path.basename(os.path.dirname(scipioyaml))})  {command}")
         process_id = None
         try:
             command_args = shlex.split(command)
-            process = subprocess.Popen(command_args, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
-            process_id = process.pid
-            add_process(run_id, process_id, command, 1)
-            stdout, stderr = process.communicate()            
+            with open(scipioyaml, "rb") as fin, open(scipioscipiogff, "wb") as fout:
+                process = subprocess.Popen(command_args, stdin=fin, stdout=fout, stderr=subprocess.PIPE, preexec_fn=os.setsid)             
+                process_id = process.pid
+                add_process(run_id, process_id, command, 1)
+                _, stderr = process.communicate()        
         except subprocess.CalledProcessError as e:
             return f'Error: scipio.scipiogff has not been generated. Command: {command}. stderr: {e.stderr.decode() if e.stderr else ""}'
         finally:
             if process_id:
-                remove_process(run_id, process_id=process_id)
+                remove_process(process_id)
                 
     command = f"perl {conda_bin_path}/scipiogff2gff.pl --in={scipioscipiogff} --out={scipiogff}"
 
@@ -152,7 +148,7 @@ def extract_gff_from_yaml(run_id, scipioyaml, scipioscipiogff, scipiogff):
         return f"Error: scipiogff2gff failed for command {command}. stderr: {e.stderr.decode() if e.stderr else ''}"
     finally:
         if process_id:
-            remove_process(run_id, process_id=process_id)    
+            remove_process(process_id)    
 
 def gff_to_genbank(run_id, assembly_file, genesrawgb, scipiogff):
     command = f"perl {conda_bin_path}/gff2gbSmallDNA.pl {scipiogff} {assembly_file} 1000 {genesrawgb}"
@@ -168,8 +164,42 @@ def gff_to_genbank(run_id, assembly_file, genesrawgb, scipiogff):
         return f"Error: gff2gbSmallDNA failed for command {command}. stderr: {e.stderr.decode() if e.stderr else ''}"
     finally:
         if process_id:
-            remove_process(run_id, process_id=process_id)        
+            remove_process(process_id)        
     
+def gff_to_genbank(run_id, assembly_file, genesrawgb, scipiogff):
+    command = f"perl {conda_bin_path}/gff2gbSmallDNA.pl {scipiogff} {assembly_file} 1000 {genesrawgb}"
+    print(f"\n({os.path.basename(os.path.dirname(genesrawgb))}) {command}")
+    process_id = None
+    try:
+        command_args = shlex.split(command)
+        process = subprocess.Popen(command_args, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
+        process_id = process.pid
+        add_process(run_id, process_id, command, 1)
+        stdout, stderr = process.communicate()
+        if os.path.exists(genesrawgb):
+            clean_genbank_file(genesrawgb)
+            
+    except subprocess.CalledProcessError as e:
+        return f"Error: gff2gbSmallDNA failed for command {command}. stderr: {e.stderr.decode() if e.stderr else ''}"
+    finally:
+        if process_id:
+            remove_process(process_id)
+
+def clean_genbank_file(gb_file):
+    with open(gb_file, 'r') as f:
+        content = f.read()
+    entries = content.split('//\n')
+    valid_entries = []
+    for entry in entries:
+        if not entry.strip():
+            continue
+        if '0 bp' in entry or '..-' in entry:
+            continue
+        valid_entries.append(entry)
+    with open(gb_file, 'w') as f:
+        f.write('//\n'.join(valid_entries) + ('//\n' if valid_entries else ''))
+        
+        
 def concatenate_files(input_files, output_file):
     with open(output_file, 'w') as outfile:
         for infile in input_files:

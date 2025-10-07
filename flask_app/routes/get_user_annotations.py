@@ -19,11 +19,10 @@ def get_user_annotations():
     progress_not_using_process = ["Downloading assembly file from Ensembl FTP ...", 
                                   "Downloading assembly file from NCBI ...", 
                                   "Searching for evidences (proteins) in the databases ...",
-                                  "Selecting and downloading evidences (proteins) from the database search ..."
-                                  ]
+                                  "Selecting and downloading evidences (proteins) from the database search ..."]
     for annotation in annotations['data']:
         run_id = annotation['parameters']['id']
-        if check_processes and annotation['status'] == 'running' and annotation['progress'] not in progress_not_using_process and not user.startswith('workshop-cjfps'):
+        if check_processes and annotation['status'] == 'running' and annotation['progress'][-1] not in progress_not_using_process and not user.startswith('workshop-cjfps'):
             process_found = check_process(run_id)
             if not process_found:
                 annotation['status'] = 'failed'

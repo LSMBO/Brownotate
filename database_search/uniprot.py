@@ -63,8 +63,6 @@ class UniprotTaxo:
                                 'taxonId': result['taxonId'], 
                                 'rank': result['rank']}] + [
                                 elt for elt in reversed(result['lineage']) 
-                                if not elt['hidden'] or 
-                                (elt['hidden'] and reference_id and elt['taxonId'] == reference_id)
                               ]
                     result['lineage'] = lineage
                     result['is_bacteria'] = is_bacteria

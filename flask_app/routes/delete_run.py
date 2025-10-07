@@ -1,7 +1,7 @@
 import os, shutil
 from flask import Blueprint, request, jsonify
 from flask_app.database import find_one, delete_one
-from flask_app.process_manager import stop_user_processes
+from flask_app.process_manager import stop_run_processes
 from utils import load_config
 
 delete_run_bp = Blueprint('delete_run_bp', __name__)
@@ -17,7 +17,7 @@ def delete_run():
 	find_run_results = find_one('runs', {'parameters.id': int(run_id)})
 	delete_result = delete_one('runs', {'parameters.id': int(run_id)})
 	if delete_result['status'] == 'success':
-		stop_user_processes(run_id)
+		stop_run_processes(run_id)
 		if delete_result.get('deleted_count', 0) > 0:
 			working_dir = os.path.join(config['BROWNOTATE_PATH'], 'runs', str(run_id))
 			if os.path.exists(working_dir):

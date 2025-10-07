@@ -54,7 +54,7 @@ def create_fasta(originalFasta, listToConvert, name, out_id_map):
         cpt = cpt+1 
         for res in listToConvert:
             if (res[0] == oldID):
-                if (res[9]=="True"):
+                if (res[-1]=="True"):
                     rawDes_re = re.findall(r" .* OS=", res[2])
                     if (len(rawDes_re)!=0): # -> Uniprot match
                         rawDes = rawDes_re[0]
@@ -64,7 +64,6 @@ def create_fasta(originalFasta, listToConvert, name, out_id_map):
                         if (len(rawDes_re)!=0): # -> NCBI match
                             rawDes = re.search(r'(?<=\d\s)(.*?)(?=\s\[\w+\s\w+\]$)', res[2]).group(0)
                             newDescription = rawDes + " FROM "+rawDes_re[0][2:-1]
-
         if (newDescription == "Uncharacterized protein"):
             corresTab.append([oldID, newID, "NO"])     
         else:

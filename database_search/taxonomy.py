@@ -16,7 +16,6 @@ def dbs_taxonomy():
     
     scientific_name = dbsearch['scientificName']
     taxID = dbsearch['taxonId']
-    print(f"dbs_taxonomy: scientific_name={scientific_name}, taxID={taxID}")
     current_datetime = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
 
     if not user or not taxID:

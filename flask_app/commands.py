@@ -9,7 +9,7 @@ config = load_config()
 env = os.environ.copy()
 env['PATH'] = os.path.join(config['BROWNOTATE_ENV_PATH'], 'bin') + os.pathsep + env['PATH']
    
-def run_command(command, wd, cpus=1, stdout_path=None, stderr_path=None, env=env):
+def run_command(command, wd, cpus=1, stdout_path=None, stderr_path=None, env=env, shell=False):
     process = None
     process_id = None
     try:
@@ -28,6 +28,7 @@ def run_command(command, wd, cpus=1, stdout_path=None, stderr_path=None, env=env
             stdout=stdout_handle, 
             stderr=stderr_handle, 
             text=True, 
+            shell=shell,
             preexec_fn=os.setsid
         )
         process_id = process.pid

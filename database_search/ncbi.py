@@ -13,13 +13,7 @@ def fetch_taxon_id(scientific_name, run_id):
     command = f"datasets summary taxonomy taxon \"{scientific_name}\""
     stdout, stderr, returncode = run_command(command, run_id, env=env)
     if returncode != 0:          
-        return jsonify({
-            'status': 'error',
-            'message': f'ncbi datasets command failed',
-            'command': command,
-            'stderr': stderr,
-            'stdout': stdout,
-        }), 500 
+        return None
     if stdout.startswith('{'):
         results = json.loads(stdout).get("reports", [])
         if results:
@@ -31,18 +25,12 @@ def fetch_taxonomy_data(taxid, run_id):
 
     stdout, stderr, returncode = run_command(command, run_id, env=env)
     if returncode != 0:          
-        return jsonify({
-            'status': 'error',
-            'message': f'ncbi datasets command failed',
-            'command': command,
-            'stderr': stderr,
-            'stdout': stdout,
-        }), 500 
+        return None
     if stdout.startswith('{'):
         result = json.loads(stdout).get("reports", [])
         if result:
-            if results[0]['taxonomy']['tax_id'] == int(taxid):
-                taxonomy_data = results[0]['taxonomy']
+            if result[0]['taxonomy']['tax_id'] == int(taxid):
+                taxonomy_data = result[0]['taxonomy']
                 taxonomy_data['taxonId'] = taxonomy_data.pop('tax_id')
                 classification = taxonomy_data['classification']
                 lineage = []
@@ -66,13 +54,7 @@ def fetch_ncbi_genomes(taxid, assembly_source, assembly_level, annotated, limit,
     
     stdout, stderr, returncode = run_command(command, run_id, env=env)
     if returncode != 0:
-        return jsonify({
-            'status': 'error',
-            'message': f'ncbi datasets command failed',
-            'command': command,
-            'stderr': stderr,
-            'stdout': stdout,
-        }), 500    
+        return []
     if stdout.startswith('{'):
         results = json.loads(stdout).get("reports", [])
         return results

@@ -66,6 +66,10 @@ app.config.from_mapping(config)
 CORS(app)
 socketio.init_app(app)
 
+# Delete remaining processes in the database (in case of a crash)
+from flask_app.database import delete
+delete('processes', {})
+
 # Database search
 app.register_blueprint(dbs_taxonomy_bp)
 app.register_blueprint(dbs_uniprot_proteome_bp)

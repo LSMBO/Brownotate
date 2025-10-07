@@ -73,8 +73,8 @@ def run_augustus_worker(assembly_file, output_name, wd):
     output_aa_file = f"runs/{wd}/annotation/augustus/{output_basename}.aa"
     output_gff_file = f"runs/{wd}/annotation/augustus/{output_basename}.gff"
     if not os.path.exists(output_aa_file):
-        command = f"augustus --species={wd} {assembly_file} > {output_gff_file}"
-        stdout, stderr, returncode = run_command(command, wd)
+        command = f"augustus --species={wd} {assembly_file}"
+        stdout, stderr, returncode = run_command(command, wd, stdout_path=output_gff_file)
         if returncode != 0:          
             return {'status': 'error', 'command': command, 'stdout': stdout, 'stderr': stderr}
                               
@@ -93,7 +93,7 @@ def concatenate_files(annotation_files, wd, annotation_concatenated_file):
             with open(file, 'r') as file_handle:
                 for seq_record in SeqIO.parse(file_handle, "fasta"):
                     count += 1
-                    new_id = f"augustus_predicted_{count}"
+                    new_id = f"br_{count:06d}"
                     seq_record.id = new_id
                     seq_record.description = ""
                     seq_records.append(seq_record)

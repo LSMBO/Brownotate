@@ -25,18 +25,34 @@ def dbs_refseq():
         'data': dbsearch['data']
     }
  
-    ncbi_refseq_annotated_genomes, ncbi_refseq_genomes = ncbi.get_ncbi_genomes(output_data['data'], "RefSeq", run_id=run_id)
-    output_data['data']['ncbi_refseq_annotated_genomes'] = ncbi_refseq_annotated_genomes
-    output_data['data']['ncbi_refseq_genomes'] = ncbi_refseq_genomes
+    try:
+        ncbi_refseq_annotated_genomes, ncbi_refseq_genomes = ncbi.get_ncbi_genomes(output_data['data'], "RefSeq", run_id=run_id)
+        
+        if ncbi_refseq_annotated_genomes is None or ncbi_refseq_genomes is None:
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to fetch NCBI RefSeq genomes data',
+                'timer': timer.stop(start_time)
+            }), 500
+            
+        output_data['data']['ncbi_refseq_annotated_genomes'] = ncbi_refseq_annotated_genomes
+        output_data['data']['ncbi_refseq_genomes'] = ncbi_refseq_genomes
 
-    timer_str = timer.stop(start_time)
-    print(f"Timer dbs_refseq: {timer_str}")
-    output_data['data']['timer_refseq'] = timer_str
+        timer_str = timer.stop(start_time)
+        print(f"Timer dbs_refseq: {timer_str}")
+        output_data['data']['timer_refseq'] = timer_str
 
-    query = {'run_id': dbsearch['run_id']}
-    update = { '$set': {'status': 'refseq', 'data': output_data['data']} }    
-    
-    if create_new_dbs:
-        update_one('dbsearch', query, update)
-    
-    return jsonify(output_data)
+        query = {'run_id': dbsearch['run_id']}
+        update = { '$set': {'status': 'refseq', 'data': output_data['data']} }    
+        
+        if create_new_dbs:
+            update_one('dbsearch', query, update)
+        
+        return jsonify(output_data)
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Error processing RefSeq data: {str(e)}',
+            'timer': timer.stop(start_time)
+        }), 500

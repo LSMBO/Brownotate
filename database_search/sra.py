@@ -9,7 +9,7 @@ import json
 from flask import Blueprint, request, jsonify
 from flask_app.database import find, update_one
 from timer import timer
-
+import database_search.ncbi as ncbi
 
 config = load_config()
 env = os.environ.copy()
@@ -253,7 +253,7 @@ def find_batches_for_input_taxonomy(parameters):
 
 def find_batches_along_lineage(parameters):
     input_taxid = parameters['taxonomy']['taxonId']
-    lineage = parameters['taxonomy']['lineage'][1:]
+    lineage = parameters['taxonomy']['lineage']
     
     get_all_batches_parameters = {
         'input_taxid': input_taxid,
@@ -264,7 +264,7 @@ def find_batches_along_lineage(parameters):
         'runs_blacklist': set(),
         'max_batch_count': parameters['max_batch_count'],
         'optimal_only': False,
-        'exclude_input_species': True,
+        'exclude_input_species': False,
     }
     
     get_all_batches_no_strategy_parameters = get_all_batches_parameters.copy()
@@ -286,7 +286,6 @@ def find_batches_along_lineage(parameters):
             get_all_batches_parameters['runs_blacklist'].update(runs_blacklist)
         if any(batch['optimal_sequencing_set'] for batch in parameters['all_batches']):
             break
-        
     return prioritize_batches(parameters['all_batches'], input_taxid, max_batch_count, parameters['genome_size'])
 
 def get_batches_for_species(parameters):
@@ -363,7 +362,7 @@ def get_all_batches(parameters, expanded):
     # 1. Search for the input species and its synonyms
     for species in synonyms:
         all_runs.extend(fetch_runs_for_species(species, parameters))
-    
+
     # 2. Generate batches for each species found
     selected_batches = []
     species_dict = group_runs_by_species(all_runs)

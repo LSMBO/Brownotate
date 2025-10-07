@@ -4,6 +4,8 @@ from timer import timer
 from utils import load_config
 from flask import Blueprint, request, jsonify
 from flask_app.commands import run_command
+from Bio import SeqIO
+from Bio.Seq import Seq
 
 run_prokka_bp = Blueprint('run_prokka_bp', __name__)
 config = load_config()
@@ -39,12 +41,30 @@ def run_prokka():
     
     change_owner_recursive(f"runs/{wd}/annotation")
     clear_and_rename(wd, annotation_file)
+    rename_fasta_headers(annotation_file)
     
     return jsonify({
         'status': 'success', 
         'data': annotation_file, 
         'timer': timer.stop(start_time)
     }), 200
+
+def rename_fasta_headers(annotation_file):
+    records = list(SeqIO.parse(annotation_file, "fasta"))
+    new_records = []
+    count = 0
+    for record in records:
+        count += 1
+        new_id = f"br_{count:06d}"
+        rec = SeqIO.SeqRecord(
+            Seq(str(record.seq).upper()),
+            id=new_id,
+            description=""
+        )
+        new_records.append(rec)
+    
+    with open(annotation_file, "w") as f:
+        SeqIO.write(new_records, f, "fasta")
 
 def clear_and_rename(wd, annotation_file):
     files = os.listdir(f"runs/{wd}/annotation")
