@@ -2,7 +2,7 @@ import time
 import os
 import copy
 from timer import timer
-from utils import load_config
+from flask_app.utils import load_config
 from flask import Blueprint, request, jsonify
 from flask_app.commands import run_command
 
@@ -55,7 +55,11 @@ def run_fastp():
         file_name = sequencing_file['file_name']
         platform = sequencing_file['platform']
         layout = 'PAIRED' if isinstance(file_name, list) and len(file_name) == 2 else 'SINGLE'
-        if platform == "PACBIO_SMRT":
+        
+        # Skip fastp for PacBio and Nanopore as they need different QC tools
+        if platform in ["PACBIO_SMRT", "OXFORD_NANOPORE"]:
+            # Just pass through without processing
+            output_files.append(sequencing_file)
             continue
 
         if (layout == "PAIRED"):

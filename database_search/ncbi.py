@@ -1,7 +1,7 @@
 import subprocess
 import os
 import json
-from utils import load_config
+from flask_app.utils import load_config
 from flask_app.commands import run_command
 
 config = load_config()
@@ -97,7 +97,7 @@ def get_ncbi_genomes(data, assembly_source, run_id, limit=999):
     genomes = []
     output_annotated_genomes = []
     output_genomes = []
-    for taxo in data['taxonomy']['lineage']:
+    for taxo in data['lineage']:
         # First search for annotated genomes, if a genome is annotated, it will also have an assembled DNA version
         for level in ["chromosome", "complete", "scaffold", "contig"]:
             if len(annotated_genomes) >= limit:

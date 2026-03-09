@@ -1,65 +1,108 @@
-from database_search.uniprot import UniprotTaxo
+from database_search.uniprot_taxo import UniprotTaxo
 import matplotlib.pyplot as plt
 from flask import Blueprint, request, jsonify
-from flask_app.database import find, update_one
-import json, os
+import json, os, datetime
 from timer import timer
 
 dbs_phylogeny_bp = Blueprint('dbs_phylogeny_bp', __name__)
 
 @dbs_phylogeny_bp.route('/dbs_phylogeny', methods=['POST'])
 def dbs_phylogeny():
-    start_time = timer.start()
-    
-    user = request.json.get('user')
-    dbsearch = request.json.get('dbsearch')
-    create_new_dbs = request.json.get('createNewDBS')
+    try:
+        start_time = timer.start()
+        user = request.json.get('user')
+        dbs = request.json.get('dbs')
+        taxonomy = request.json.get('taxonomy')
+        current_datetime = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
+        if not user or not dbs or not taxonomy:
+            return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
 
-    if not user or not dbsearch:
-        return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
+        # Clean up old phylogeny maps (older than 7 days)
+        phylogeny_maps_dir = os.path.join('output_runs', 'phylogeny_maps')
+        os.makedirs(phylogeny_maps_dir, exist_ok=True)
+        
+        cutoff_time = datetime.datetime.now() - datetime.timedelta(minutes=4) # days=7
+        for filename in os.listdir(phylogeny_maps_dir):
+            file_path = os.path.join(phylogeny_maps_dir, filename)
+            if os.path.isfile(file_path):
+                file_mtime = datetime.datetime.fromtimestamp(os.path.getmtime(file_path))
+                if file_mtime < cutoff_time:
+                    os.remove(file_path)
+            
+        phylogeny_map_path = os.path.join(phylogeny_maps_dir, f'phylogeny_map_{current_datetime}.png')
+        get_phylogeny_map(dbs, taxonomy, phylogeny_map_path)
+        timer_str = timer.stop(start_time)
 
-    output_data = {
-        'run_id': dbsearch['run_id'],
-        'status': 'phylogeny',
-        'date': dbsearch['date'],
-        'data': dbsearch['data']
-    }
-
-    phylogeny_map_path = os.path.join('output_runs', dbsearch['run_id'], 'phylogeny_map.png')
-    get_phylogeny_map(dbsearch['data'], phylogeny_map_path)
-    output_data['data']['phylogeny_map'] = phylogeny_map_path
-
-    timer_str = timer.stop(start_time)
-    print(f"Timer dbs_phylogeny: {timer_str}")
-    output_data['data']['timer_phylogeny'] = timer_str
-    
-    query = {'run_id': dbsearch['run_id']}
-    update = { '$set': {'status': 'phylogeny', 'data': output_data['data']} }    
-    
-    if create_new_dbs:
-        update_one('dbsearch', query, update)
-    
-    return jsonify(output_data)
+        response_data = {
+            'user': user, 
+            'timer': timer_str,
+            'date': current_datetime,
+            'scientific_name': taxonomy['scientificName'],
+            'taxid': taxonomy['taxonId'],
+            'data': {
+                'phylogeny_map': phylogeny_map_path
+            }
+        }
+        
+        return jsonify({'status': 'success', 'data': response_data}), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': 'An unexpected error occurred',
+            'timer': timer.stop(start_time),
+            'details': str(e)
+        }), 500    
 
 
-
-
-def extract_all_taxids(dbsearch):
-    taxid_fields = [
-        'uniprot_proteomes',
-        'ncbi_refseq_annotated_genomes',
-        'ncbi_genbank_annotated_genomes',
-        'ncbi_refseq_genomes',
-        'ncbi_genbank_genomes',
-        'ensembl_annotated_genomes',
-        'ensembl_genomes'
-    ]
+def extract_all_taxids(dbs):
     list_of_taxid = []
-    for field in taxid_fields:
-        for entry in dbsearch.get(field, []):
-            list_of_taxid.append(entry['taxid'])
-    for batch in dbsearch.get('dnaseq', []):
-        list_of_taxid.append(int(batch['runs'][0]['taxid']))
+    
+    # Uniprot proteome
+    if dbs.get('uniprot_proteome') and dbs['uniprot_proteome'].get('proteins'):
+        for proteome in dbs['uniprot_proteome']['proteins']:
+            if 'taxid' in proteome:
+                list_of_taxid.append(proteome['taxid'])
+    
+    # Ensembl proteins and assemblies
+    if dbs.get('ensembl'):
+        if dbs['ensembl'].get('proteins'):
+            for entry in dbs['ensembl']['proteins']:
+                if 'taxid' in entry:
+                    list_of_taxid.append(entry['taxid'])
+        if dbs['ensembl'].get('assemblies'):
+            for entry in dbs['ensembl']['assemblies']:
+                if 'taxid' in entry:
+                    list_of_taxid.append(entry['taxid'])
+    
+    # RefSeq proteins and assemblies
+    if dbs.get('refseq'):
+        if dbs['refseq'].get('proteins'):
+            for entry in dbs['refseq']['proteins']:
+                if 'taxid' in entry:
+                    list_of_taxid.append(entry['taxid'])
+        if dbs['refseq'].get('assemblies'):
+            for entry in dbs['refseq']['assemblies']:
+                if 'taxid' in entry:
+                    list_of_taxid.append(entry['taxid'])
+    
+    # GenBank proteins and assemblies
+    if dbs.get('genbank'):
+        if dbs['genbank'].get('proteins'):
+            for entry in dbs['genbank']['proteins']:
+                if 'taxid' in entry:
+                    list_of_taxid.append(entry['taxid'])
+        if dbs['genbank'].get('assemblies'):
+            for entry in dbs['genbank']['assemblies']:
+                if 'taxid' in entry:
+                    list_of_taxid.append(entry['taxid'])
+    
+    # DNA sequencing batches
+    if dbs.get('dnaseq') and dbs['dnaseq'].get('batches'):
+        for batch in dbs['dnaseq']['batches']:
+            if batch.get('runs') and len(batch['runs']) > 0:
+                if 'taxid' in batch['runs'][0]:
+                    list_of_taxid.append(int(batch['runs'][0]['taxid']))
+
     return list(set(list_of_taxid))
 
 def get_lineages(list_of_taxid, main_taxid):
@@ -158,10 +201,10 @@ def get_phylogeny_intersection(lineage1, lineage2):
             return lineage2.index(taxid)
     return None
 
-def get_phylogeny_map(dbsearch, output_path):
-    main_lineage = dbsearch['taxonomy']['lineage']
-    main_taxid = dbsearch['taxonomy']['taxonId']
-    list_of_taxid = extract_all_taxids(dbsearch)
+def get_phylogeny_map(dbs, taxonomy, output_path):
+    main_lineage = taxonomy['lineage']
+    main_taxid = taxonomy['taxonId']
+    list_of_taxid = extract_all_taxids(dbs)
     list_of_lineage = get_lineages(list_of_taxid, main_taxid)
 
     fig, ax = plt.subplots(figsize=(10, 5))

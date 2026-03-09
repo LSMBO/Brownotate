@@ -2,7 +2,8 @@ import subprocess
 import os
 import shlex
 import psutil
-from utils import load_config
+import docker
+from .utils import load_config
 from flask_app.process_manager import add_process, remove_process
 
 config = load_config()
@@ -55,4 +56,129 @@ def run_command(command, wd, cpus=1, stdout_path=None, stderr_path=None, env=env
                 except Exception:
                     pass
         if process_id:
+            remove_process(process_id)
+
+
+def run_docker_command(image, command, wd, cpus=1, volumes=None, working_dir=None, env_vars=None, stdout_path=None, stderr_path=None, timeout=None):
+    """
+    Execute a command inside a Docker container with process tracking.
+    
+    Args:
+        image: Docker image name (e.g., 'quay.io/biocontainers/canu:2.2--ha47f30e_0')
+        command: Command to run inside the container (string or list)
+        wd: Working directory ID for process tracking
+        cpus: Number of CPUs to allocate
+        volumes: Dict of host:container volume mappings (e.g., {'/host/path': '/container/path'})
+        working_dir: Working directory inside the container
+        env_vars: Dict of environment variables to set in the container
+        stdout_path: Path to redirect stdout
+        stderr_path: Path to redirect stderr
+        timeout: Timeout in seconds for container operations (default: 2592000 for heavy operations)
+    
+    Returns:
+        Tuple of (stdout, stderr, returncode)
+    """
+    container = None
+    container_id = None
+    try:
+        print(f"\nRunning Docker command: {command}")
+        print(f"Image: {image}")
+        
+        # Initialize Docker client with increased timeout for heavy operations
+        # Default timeout is 60s which is too short for CANU and other heavy tools
+        client_timeout = timeout if timeout is not None else 2592000  # 30 days default
+        client = docker.from_env(timeout=client_timeout)
+        
+        # Prepare volumes
+        volume_mounts = {}
+        if volumes:
+            for host_path, container_path in volumes.items():
+                abs_host_path = os.path.abspath(host_path)
+                volume_mounts[abs_host_path] = {
+                    'bind': container_path,
+                    'mode': 'rw'
+                }
+        
+        # Prepare environment variables
+        environment = env_vars if env_vars else {}
+        
+        # Convert command to proper format
+        if isinstance(command, str):
+            cmd = command
+        else:
+            cmd = ' '.join(command)
+        
+        # Get current user UID and GID (works across all systems)
+        uid = os.getuid()
+        gid = os.getgid()
+
+        # Run container
+        container = client.containers.run(
+            image,
+            command=cmd,
+            volumes=volume_mounts,
+            working_dir=working_dir,
+            environment=environment,
+            user=f'{uid}:{gid}',  # Use numeric UID:GID instead of username
+            detach=True,
+            remove=False, 
+        )
+        
+        container_id = container.id
+        
+        # Get the actual process ID from Docker container
+        # We use the container ID as a pseudo-PID for tracking
+        process_id = hash(container_id) % (10 ** 8)  # Convert to a reasonable integer
+        add_process(wd, process_id, f"docker:{cmd}", cpus)
+        
+        # Wait for container to finish and collect logs
+        result = container.wait()
+        returncode = result['StatusCode']
+        
+        # Get logs (stdout + stderr combined by default in Docker)
+        logs = container.logs(stdout=True, stderr=True).decode('utf-8')
+        
+        # Split logs into stdout and stderr if needed (Docker combines them)
+        # For now, we'll put everything in stdout
+        stdout = logs
+        stderr = ''
+        
+        # Write to files if paths provided
+        if stdout_path:
+            with open(stdout_path, 'w') as f:
+                f.write(stdout)
+            stdout = ''
+        
+        if stderr_path:
+            with open(stderr_path, 'w') as f:
+                f.write(stderr)
+            stderr = ''
+        
+        return stdout, stderr, returncode
+        
+    except docker.errors.ImageNotFound:
+        error_msg = f"Docker image not found: {image}"
+        print(error_msg)
+        return '', error_msg, 1
+        
+    except docker.errors.ContainerError as e:
+        error_msg = f"Container error: {str(e)}"
+        print(error_msg)
+        return '', error_msg, e.exit_status
+        
+    except Exception as e:
+        error_msg = f"Docker command failed: {str(e)}"
+        print(error_msg)
+        return '', error_msg, 1
+        
+    finally:
+        # Clean up container
+        if container:
+            try:
+                container.remove(force=True)
+            except Exception as e:
+                print(f"Failed to remove container: {str(e)}")
+        
+        # Remove process from tracking
+        if 'process_id' in locals() and process_id:
             remove_process(process_id)

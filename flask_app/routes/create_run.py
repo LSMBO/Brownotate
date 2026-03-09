@@ -16,6 +16,7 @@ def create_run():
 	if not user or not parameters or not run_id or not step_list:
 		return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
 	parameters['id'] = run_id
+	parameters['run_id'] = run_id
 	parameters['cpus'] = cpus
 	run_data = {
 		'user': user,
@@ -33,6 +34,34 @@ def create_run():
 	wd_folder = create_wd_folder(run_id)
 	
  
+	if insert_result['status'] == 'success':
+		run_data['_id'] = str(insert_result['inserted_id'])
+		return jsonify({'status': 'success', 'run': run_data}), 200
+	else:
+		return jsonify({'status': 'error', 'message': insert_result['message']}), 500
+
+create_farun_bp = Blueprint('create_farun_bp', __name__)
+
+@create_farun_bp.route('/create_farun', methods=['POST'])
+def create_farun():
+	data = request.json
+	run_id = data.get('run_id')
+	cpus = data.get('cpus')
+	user = data.get('user')
+	parameters = data.get('parameters')
+	if not user or not parameters or not run_id:
+		return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
+
+	parameters['id'] = run_id
+	parameters['cpus'] = cpus
+	run_data = {
+		'user': user,
+		'status': 'running',
+		'parameters': parameters,
+		'run_id': run_id,
+	}
+	insert_result = insert_one('runs', run_data)
+	wd_folder = create_wd_folder(run_id)
 	if insert_result['status'] == 'success':
 		run_data['_id'] = str(insert_result['inserted_id'])
 		return jsonify({'status': 'success', 'run': run_data}), 200

@@ -3,5 +3,7 @@
   "MONGO_URI": "",
   "BROWNOTATE_PATH": "/path/to/Brownotate",
   "BROWNOTATE_ENV_PATH": "/path/to/anaconda3/envs/br",
-  "SRA_DOWNLOAD_ENV_PATH": "/path/to/anaconda3/envs/sra-download"
+  "SRA_DOWNLOAD_ENV_PATH": "/path/to/anaconda3/envs/sra-download",
+  "BROWNAMING_ENV_PATH": "/path/to/anaconda3/envs/brownaming",
+  "BROWNAMING_DB": "/path/to/brownaming_db"
 }

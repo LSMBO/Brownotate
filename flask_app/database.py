@@ -1,20 +1,35 @@
 from pymongo import MongoClient
-from utils import load_config
+from .utils import load_config
 
 config = load_config()
 client = MongoClient(config['MONGO_URI'])
 db = client['brownotate-db']
 users_collection = db['users']
 runs_collection = db['runs']
-dbsearch_collection = db['dbsearch']
+taxonomy_collection = db['taxonomy']
+ensembl_collection = db['ensembl']
+refseq_collection = db['refseq']
+genbank_collection = db['genbank']
+dnaseq_collection = db['dnaseq']
+uniprot_collection = db['uniprot']
 processes_collection = db['processes']
 
 if 'users' not in db.list_collection_names():
     db.create_collection('users')
 if 'runs' not in db.list_collection_names():
     db.create_collection('runs')
-if 'dbsearch' not in db.list_collection_names():
-    db.create_collection('dbsearch')
+if 'taxonomy' not in db.list_collection_names():
+    db.create_collection('taxonomy')
+if 'ensembl' not in db.list_collection_names():
+    db.create_collection('ensembl')
+if 'refseq' not in db.list_collection_names():
+    db.create_collection('refseq')
+if 'genbank' not in db.list_collection_names():
+    db.create_collection('genbank')
+if 'dnaseq' not in db.list_collection_names():
+    db.create_collection('dnaseq')
+if 'uniprot' not in db.list_collection_names():
+    db.create_collection('uniprot')
 
 def find(collection_name, query):    
     try:

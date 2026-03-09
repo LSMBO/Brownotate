@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 import database_search.ncbi as ncbi
-from flask_app.database import find, update_one
-import json
+from flask_app.database import insert_one
+import json, datetime
 from timer import timer
 
 dbs_genbank_bp = Blueprint('dbs_genbank_bp', __name__)
@@ -9,50 +9,56 @@ dbs_genbank_bp = Blueprint('dbs_genbank_bp', __name__)
 @dbs_genbank_bp.route('/dbs_genbank', methods=['POST'])
 def dbs_genbank():
     start_time = timer.start()
-    
     user = request.json.get('user')
-    dbsearch = request.json.get('dbsearch')
-    create_new_dbs = request.json.get('createNewDBS')
-    run_id = request.json.get('run_id', dbsearch['run_id'] if dbsearch else None)
+    taxonomy = request.json.get('taxonomy')
+    options = request.json.get('options', {})
+    current_datetime = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
 
-    if not user or not dbsearch:
+    if not user or not taxonomy:
         return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
 
-    output_data = {
-        'run_id': dbsearch['run_id'],
-        'status': 'genbank',
-        'date': dbsearch['date'],
-        'data': dbsearch['data']
-    }
- 
     try:
-        ncbi_genbank_annotated_genomes, ncbi_genbank_genomes = ncbi.get_ncbi_genomes(output_data['data'], "genbank", run_id=run_id)
-        
+        ncbi_genbank_annotated_genomes, ncbi_genbank_genomes = ncbi.get_ncbi_genomes(taxonomy, "genbank", run_id=current_datetime)
         if ncbi_genbank_annotated_genomes is None or ncbi_genbank_genomes is None:
             return jsonify({
                 'status': 'error',
                 'message': 'Failed to fetch NCBI GenBank genomes data',
                 'timer': timer.stop(start_time)
             }), 500
-            
-        output_data['data']['ncbi_genbank_annotated_genomes'] = ncbi_genbank_annotated_genomes
-        output_data['data']['ncbi_genbank_genomes'] = ncbi_genbank_genomes
-
         timer_str = timer.stop(start_time)
-        print(f"Timer dbs_genbank: {timer_str}")
-        output_data['data']['timer_genbank'] = timer_str
-
-        query = {'run_id': dbsearch['run_id']}
-        update = { '$set': {'status': 'genbank', 'data': output_data['data']} }    
         
-        if create_new_dbs:
-            update_one('dbsearch', query, update)
+        mongo_query = {
+            'user': user, 
+            'timer': timer_str,
+            'date': current_datetime,
+            'scientific_name': taxonomy['scientificName'],
+            'taxid': taxonomy['taxonId'],
+            'options': options,
+            'data': {
+                'ncbi_genbank_annotated_genomes': ncbi_genbank_annotated_genomes,
+                'ncbi_genbank_genomes': ncbi_genbank_genomes
+            }
+        }
+        insert_one('genbank', mongo_query)
         
-        return jsonify(output_data)
-        
+        response_data = {
+            'user': user, 
+            'timer': timer_str,
+            'date': current_datetime,
+            'scientific_name': taxonomy['scientificName'],
+            'taxid': taxonomy['taxonId'],
+            'options': options,
+            'data': {
+                'ncbi_genbank_annotated_genomes': ncbi_genbank_annotated_genomes,
+                'ncbi_genbank_genomes': ncbi_genbank_genomes
+            }
+        }
+                
+        return jsonify({'status': 'success', 'data': response_data}), 200
     except Exception as e:
         return jsonify({
             'status': 'error',
-            'message': f'Error processing GenBank data: {str(e)}',
-            'timer': timer.stop(start_time)
+            'message': 'An unexpected error occurred',
+            'timer': timer.stop(start_time),
+            'details': str(e)
         }), 500

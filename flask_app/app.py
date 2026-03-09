@@ -6,13 +6,12 @@ from flask_app.extensions import socketio
 from flask_app.utils import load_config
 
 # Database Search
-from database_search.taxonomy import dbs_taxonomy_bp
-from database_search.uniprot_proteome import dbs_uniprot_proteome_bp
+from database_search.uniprot import dbs_uniprot_bp
 from database_search.refseq import dbs_refseq_bp
 from database_search.genbank import dbs_genbank_bp
 from database_search.ensembl import dbs_ensembl_bp
 from database_search.phylogeny import dbs_phylogeny_bp
-from database_search.sra import dbs_dnaseq_bp, search_sequencing_run_bp
+from database_search.sequencing.routes import dbs_dnaseq_bp, search_sequencing_run_bp
 
 # Download
 from download.uniprot import download_uniprot_bp
@@ -25,6 +24,7 @@ from download.sra import download_sra_bp
 from sequencing.fastp import run_fastp_bp
 from sequencing.phix import run_remove_phix_bp
 from sequencing.megahit import run_megahit_bp
+from sequencing.canu import run_canu_bp
 
 # Annotation & Stats
 from annotation.prokka import run_prokka_bp
@@ -43,13 +43,15 @@ from flask_app.routes.login import login_bp
 from flask_app.routes.get_user_annotations import get_user_annotations_bp
 from flask_app.routes.check_species_exists import check_species_exists_bp
 from flask_app.routes.merge_fasta_files import merge_fasta_files_bp
-from flask_app.routes.create_run import create_run_bp
+from flask_app.routes.create_run import create_run_bp, create_farun_bp
 from flask_app.routes.delete_run import delete_run_bp
 from flask_app.routes.update_run_parameters import update_run_parameters_bp
 from flask_app.routes.update_run import update_run_bp
 from flask_app.routes.upload_file import upload_file_bp
 from flask_app.routes.get_dbsearch import get_dbsearch_bp
+from flask_app.routes.get_dbsearches import get_dbsearches_bp
 from flask_app.routes.delete_dbsearch import delete_dbsearch_bp
+from flask_app.routes.cancel_dbsearch import cancel_dbsearch_bp
 from flask_app.routes.get_run import get_run_bp
 from flask_app.routes.get_image import get_image_bp
 from flask_app.routes.read_file import read_file_bp
@@ -71,8 +73,7 @@ from flask_app.database import delete
 delete('processes', {})
 
 # Database search
-app.register_blueprint(dbs_taxonomy_bp)
-app.register_blueprint(dbs_uniprot_proteome_bp)
+app.register_blueprint(dbs_uniprot_bp)
 app.register_blueprint(dbs_refseq_bp)
 app.register_blueprint(dbs_genbank_bp)
 app.register_blueprint(dbs_ensembl_bp)
@@ -91,6 +92,7 @@ app.register_blueprint(download_sra_bp)
 app.register_blueprint(run_fastp_bp)
 app.register_blueprint(run_remove_phix_bp)
 app.register_blueprint(run_megahit_bp)
+app.register_blueprint(run_canu_bp)
 
 # Annotation & Stats
 app.register_blueprint(run_prokka_bp)
@@ -110,12 +112,15 @@ app.register_blueprint(get_user_annotations_bp)
 app.register_blueprint(check_species_exists_bp)
 app.register_blueprint(merge_fasta_files_bp)
 app.register_blueprint(create_run_bp)
+app.register_blueprint(create_farun_bp)
 app.register_blueprint(delete_run_bp)
 app.register_blueprint(update_run_parameters_bp)
 app.register_blueprint(update_run_bp)
 app.register_blueprint(upload_file_bp)
 app.register_blueprint(get_dbsearch_bp)
+app.register_blueprint(get_dbsearches_bp)
 app.register_blueprint(delete_dbsearch_bp)
+app.register_blueprint(cancel_dbsearch_bp)
 app.register_blueprint(get_run_bp)
 app.register_blueprint(get_image_bp)
 app.register_blueprint(read_file_bp)

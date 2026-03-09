@@ -22,7 +22,8 @@ def update_run():
         
     if isinstance(value, dict):
         cleaned_dict = {clean_key(k): v for k, v in value.items()}
-        update_result = update_one('runs', {"parameters.id": int(run_id)}, {"$set": {f"{field}.{k}": v for k, v in cleaned_dict.items()}})
+        update_dict = {f"{field}.{k}": v for k, v in cleaned_dict.items()}
+        update_result = update_one('runs', {"parameters.id": int(run_id)}, {"$set": update_dict})
     else:
         update_result = update_one('runs', {"parameters.id": int(run_id)}, {"$set": {field: value}})
     return jsonify({'status': 'success', 'message': 'Run status updated successfully'}), 200

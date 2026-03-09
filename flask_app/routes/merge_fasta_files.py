@@ -1,6 +1,6 @@
 import os
 from flask import Blueprint, request, jsonify
-from utils import load_config
+from ..utils import load_config
 from flask_app.file_ops import create_download_folder
 from flask_app.commands import run_command
 from datetime import datetime

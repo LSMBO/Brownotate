@@ -1,11 +1,9 @@
-from database_search.uniprot import UniprotTaxo
-import json
+import json, os, datetime
 import ftplib
 import time
 import sys
-import os
 from flask import Blueprint, request, jsonify
-from flask_app.database import find, update_one
+from flask_app.database import insert_one
 from timer import timer
 
 dbs_ensembl_bp = Blueprint('dbs_ensembl_bp', __name__)
@@ -14,46 +12,61 @@ ensembl_ftp_species = json.load(open('database_search/ensembl_ftp_species.json')
 
 @dbs_ensembl_bp.route('/dbs_ensembl', methods=['POST'])
 def dbs_ensembl():
-    start_time = timer.start()
-    
-    user = request.json.get('user')
-    dbsearch = request.json.get('dbsearch')
-    create_new_dbs = request.json.get('createNewDBS')
-    
-    if not user or not dbsearch:
-        return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
-
-    output_data = {
-        'run_id': dbsearch['run_id'],
-        'status': 'ensembl',
-        'date': dbsearch['date'],
-        'data': dbsearch['data']
-    }
- 
-    ensembl_genomes, ensembl_annotated_genomes = get_ensembl(output_data['data'])
-    output_data['data']['ensembl_annotated_genomes'] = ensembl_annotated_genomes
-    output_data['data']['ensembl_genomes'] = ensembl_genomes
-
-    timer_str = timer.stop(start_time)
-    print(f"Timer dbs_ensembl: {timer_str}")
-    output_data['data']['timer_ensembl'] = timer_str
-
-
-    query = {'run_id': dbsearch['run_id']}
-    update = { '$set': {'status': 'ensembl', 'data': output_data['data']} } 
-    
-    if create_new_dbs:
-        update_one('dbsearch', query, update)
+    try:
+        start_time = timer.start()
+        user = request.json.get('user')
+        taxonomy = request.json.get('taxonomy')
+        options = request.json.get('options', {})
+        current_datetime = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
         
-    return jsonify(output_data)
+        if not user or not taxonomy:
+            return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
+
+        ensembl_genomes, ensembl_annotated_genomes = get_ensembl(taxonomy)
+        timer_str = timer.stop(start_time)
+        
+        mongo_query = {
+            'user': user, 
+            'timer': timer_str,
+            'date': current_datetime,
+            'scientific_name': taxonomy['scientificName'],
+            'taxid': taxonomy['taxonId'],
+            'options': options,
+            'data': {
+                'ensembl_genomes': ensembl_genomes,
+                'ensembl_annotated_genomes': ensembl_annotated_genomes
+            }
+        }
+        insert_one('ensembl', mongo_query)
+
+        response_data = {
+            'user': user, 
+            'timer': timer_str,
+            'date': current_datetime,
+            'scientific_name': taxonomy['scientificName'],
+            'taxid': taxonomy['taxonId'],
+            'options': options,
+            'data': {
+                'ensembl_genomes': ensembl_genomes,
+                'ensembl_annotated_genomes': ensembl_annotated_genomes
+            }
+        }
+        
+        return jsonify({'status': 'success', 'data': response_data}), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'error', 
+            'message': 'An unexpected error occurred',
+            'timer': timer.stop(start_time), 
+            'details': str(e)
+        }), 500
 
 
-def get_ensembl(data):
+def get_ensembl(taxonomy):
     assembly_list = []
     proteins_list = []
-    if is_excluded_taxonomy(data['taxonomy']):
+    if is_excluded_taxonomy(taxonomy):
         return assembly_list, proteins_list
-    taxonomy = data['taxonomy']
     for taxo in taxonomy['lineage']:
         taxid = str(taxo['taxonId'])
         if taxid in ensembl_ftp_species:

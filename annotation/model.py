@@ -4,7 +4,7 @@ import shutil
 import json
 import re
 from timer import timer
-from utils import load_config
+from flask_app.utils import load_config
 from flask import Blueprint, request, jsonify
 import shutil
 from flask_app.commands import run_command

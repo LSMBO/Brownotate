@@ -1,5 +1,5 @@
 import json
-from database_search.uniprot import UniprotTaxo
+from database_search.uniprot_taxo import UniprotTaxo
 
 ensembl_ftp_species = [
     "acanthochromis_polyacanthus",

@@ -1,78 +1,99 @@
 import os
 from timer import timer
-from utils import load_config
+from flask_app.utils import load_config
 from flask import Blueprint, request, jsonify
-import shutil
 from flask_app.commands import run_command
+import glob
 
 run_brownaming_bp = Blueprint('run_brownaming_bp', __name__)
 config = load_config()
 env = os.environ.copy()
-env['PATH'] = os.path.join(config['BROWNOTATE_ENV_PATH'], 'bin') + os.pathsep + env['PATH']
-
+env['PATH'] = os.path.join(config['BROWNAMING_ENV_PATH'], 'bin') + os.pathsep + env['PATH']
 
 @run_brownaming_bp.route('/run_brownaming', methods=['POST'])
 def run_brownaming():
     start_time = timer.start()
     parameters = request.json.get('parameters')
-    wd = parameters['id']
-    cpus = parameters['cpus']
+    run_id = request.json.get('run_id')
+    cpus = request.json.get('cpus')
     annotation_file = request.json.get('annotation_file')
-    taxid = parameters['species']['taxonID']
-    scientific_name = parameters['species']['scientificName']
-    output_name = f"{scientific_name.replace(' ', '_')}_Brownotate.fasta"
-    directory_name = f"runs/{wd}/brownaming"
-    exclude = [taxo['taxid'] for taxo in parameters['brownamingSection']['excludedTaxoList']]
-    max_rank = parameters['brownamingSection']['highestRank']
+    resume = request.json.get('resume', False)
+
+    local_db = config.get('BROWNAMING_DB')
+    if not local_db:
+        return jsonify({
+            'status': 'error',
+            'message': 'BROWNAMING_DB path not configured in config file'
+        }), 400
     
-    # temp code to fake the process
-    # shutil.copytree('runs/fake_run/brownaming', directory_name)
-    # os.rename(annotation_file, os.path.join(directory_name, output_name))
-    # return jsonify({'status': 'success', 'data': os.path.join(directory_name, output_name), 'timer': timer.stop(start_time)}), 200
-    ##
+    brownaming_runs_dir = os.path.join(config['BROWNOTATE_PATH'], 'runs', str(run_id), 'brownaming')
     
-    if os.path.exists(directory_name + "/run_id.txt"):
-        with open(directory_name + "/run_id.txt", 'r') as run_id_file:
-            resume = run_id_file.readline().strip()
-    
-        command = f"python Brownaming-1.0.0/main.py --resume {resume}"
-        stdout, stderr, returncode = run_command(command, wd, cpus=cpus)
-        if returncode != 0:          
-            return jsonify({
-                'status': 'error',
-                'message': f'Brownaming resume command failed',
-                'command': command,
-                'stderr': stderr,
-                'stdout': stdout,
-                'timer': timer.stop(start_time)
-            }), 500    
-    
+    if resume:
+        command = f"python Brownaming/main.py --resume {run_id}"
     else:
-        directory_name = os.path.abspath(directory_name)
-        output_name = os.path.basename(output_name)
-        command = f"python Brownaming-1.0.0/main.py -p \"{annotation_file}\" -s \"{taxid}\" -o {output_name} -dir {directory_name} -c {cpus}"
+        # Start new Brownaming run
+        taxid = parameters['species']['taxonID']
+        exclude = [taxo['taxid'] for taxo in parameters['brownamingSection']['excludedTaxoList']]
+        last_taxid = parameters['brownamingSection'].get('lastTaxid')
+        exclude_trembl = parameters['brownamingSection'].get('excludeTrembl', False)
+        
+        command = f"python Brownaming/main.py -p \"{annotation_file}\" -s {taxid} --run-id {run_id} --local-db \"{local_db}\" --working-dir \"{brownaming_runs_dir}\""
+        if cpus:
+            command += f" --threads {cpus}"
+        
         if exclude:
             for tax in exclude:
-                command = command + f" -e {tax}"
-        if max_rank:
-            command = command + f" -mr {max_rank}"
-
-        stdout, stderr, returncode = run_command(command, wd, cpus=cpus)
-        if returncode != 0:          
-            return jsonify({
-                'status': 'error',
-                'message': f'Brownaming command failed',
-                'command': command,
-                'stderr': stderr,
-                'stdout': stdout,
-                'timer': timer.stop(start_time)
-            }), 500    
-
+                command += f" --ex-tax {tax}"
+        
+        if last_taxid:
+            command += f" --last-tax {last_taxid}"
+        
+        if exclude_trembl:
+            command += " --swissprot-only"
+        
+    
+    # Execute Brownaming
+    stdout, stderr, returncode = run_command(command, run_id, cpus=cpus, env=env)
+    
+    if returncode != 0 or stdout.strip().split('\n')[-1].startswith('[ERROR]') or stderr.strip().split('\n')[-1].startswith('[ERROR]'):
         return jsonify({
-            'status': 'success', 
-            'data': os.path.join(directory_name, output_name), 
+            'status': 'error',
+            'message': 'Brownaming command failed',
             'command': command,
-            'stdout': stdout,
             'stderr': stderr,
+            'stdout': stdout,
             'timer': timer.stop(start_time)
-        }), 200
+        }), 500
+        
+    
+    # Find output files
+    output_files = {
+        'fasta': None,
+        'excel': None,
+        'stats': None,
+        'log': None
+    }
+    
+    # Get paths relative to Brownotate/ directory
+    brownotate_path = config['BROWNOTATE_PATH']
+    
+    for file in os.listdir(brownaming_runs_dir):
+        if file.endswith('_brownamed.fasta'):
+            output_files['fasta'] = f'brownaming/{file}'
+        elif file.endswith('_diamond_results.xlsx'):
+            output_files['excel'] = f'brownaming/{file}'
+        elif file.endswith('_brownaming_stats.png'):
+            output_files['stats'] = f'brownaming/{file}'
+        elif file.endswith('.log'):
+            output_files['log'] = f'brownaming/{file}'
+    
+    return jsonify({
+        'status': 'success',
+        'run_id': run_id,
+        'output_files': output_files,
+        'brownaming_dir': f'{brownotate_path}/runs/{run_id}/brownaming',
+        'command': command,
+        'stdout': stdout,
+        'stderr': stderr,
+        'timer': timer.stop(start_time)
+    }), 200

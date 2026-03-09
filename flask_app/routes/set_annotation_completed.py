@@ -10,9 +10,10 @@ set_annotation_completed_bp = Blueprint('update_set_annotation_completed_bp', __
 def set_annotation_completed():
     data = request.json
     run_id = data.get('run_id')
-    annotation_file = data.get('annotation_file')
+    annotation_file = data.get('annotation_file', None)
+
     if os.path.exists(f"runs/{run_id}"):
-        if os.path.exists(annotation_file):
+        if annotation_file and os.path.exists(annotation_file):
             shutil.copy(annotation_file, f"runs/{run_id}/{os.path.basename(annotation_file)}")
             progress = "Annotation run completed successfully"
         else:
@@ -22,21 +23,28 @@ def set_annotation_completed():
         if not find_run_results['data']:
             return jsonify({'status': 'error', 'message': 'Run not found'}), 404
         
-        progress_list = find_run_results['data']['progress']
-        progress = progress_list + [progress]
-
-
-        # Clean up assembly duplicated files
-        for file in os.listdir(f"runs/{run_id}"):
-            if file.endswith('_simplified.fasta') or (file.startswith('file_') and file.endswith('.fasta')):
-                os.remove(os.path.join(f"runs/{run_id}", file))
+        if 'progress' in find_run_results['data']:
+            progress_list = find_run_results['data']['progress']
+            progress = progress_list + [progress]
+        else:
+            progress = None
+                       
+        if progress:
+            # Clean up assembly duplicated files
+            for file in os.listdir(f"runs/{run_id}"):
+                if file.endswith('_simplified.fasta') or (file.startswith('file_') and file.endswith('.fasta')):
+                    os.remove(os.path.join(f"runs/{run_id}", file))
                 
         output_run_path = move_wd_to_output_runs_folder(str(run_id))
-        if progress == "Annotation run completed successfully":
-            update_result = update_one('runs', {"parameters.id": int(run_id)}, {"$set": {"status": "completed", "progress": progress, "results_path": output_run_path}})
-            print(update_result)
+        
+        if progress:
+            if progress == "Annotation run completed successfully":
+                update_one('runs', {"parameters.id": int(run_id)}, {"$set": {"status": "completed", "progress": progress, "results_path": output_run_path}})
+            else:
+                update_one('runs', {"parameters.id": int(run_id)}, {"$set": {"status": "incompleted", "progress": progress, "results_path": output_run_path}})
         else:
-            update_result = update_one('runs', {"parameters.id": int(run_id)}, {"$set": {"status": "incompleted", "progress": progress, "results_path": output_run_path}})
+            update_one('runs', {"parameters.id": int(run_id)}, {"$set": {"status": "completed", "results_path": output_run_path}})
     else:
         return jsonify({'status': 'error', 'message': f'Run directory for run_id {run_id} does not exist'}), 400
+
     return jsonify({'status': 'success', 'message': 'Annotation status updated successfully'}), 200

@@ -1,7 +1,7 @@
 from Bio import SeqIO
 import os
 from timer import timer
-from utils import load_config
+from flask_app.utils import load_config
 from flask import Blueprint, request, jsonify
 
 run_remove_short_sequences_bp = Blueprint('run_remove_short_sequences_bp', __name__)

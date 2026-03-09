@@ -142,3 +142,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Brownaming
+Brownaming/config.json
+Brownaming/runs/
+Brownaming/test/

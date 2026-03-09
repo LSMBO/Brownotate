@@ -4,6 +4,7 @@ from flask_app.database import find
 waiting_time_dbsearch_bp = Blueprint('waiting_time_dbsearch', __name__)
 
 def time_to_seconds(time_str):
+    """Convert timer string format (HH:MM:SS or HH:MM:SS:MS) to seconds"""
     parts = time_str.split(':')
     hours = int(parts[0])
     minutes = int(parts[1])
@@ -12,6 +13,7 @@ def time_to_seconds(time_str):
     return hours * 3600 + minutes * 60 + seconds + milliseconds / 1000
 
 def seconds_to_time(seconds):
+    """Convert seconds to human readable format"""
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
     secs = int(seconds % 60)
@@ -24,48 +26,48 @@ def seconds_to_time(seconds):
 
 @waiting_time_dbsearch_bp.route('/waiting_time_dbsearch', methods=['POST'])
 def get_waiting_time_dbsearch():
-    result = find('dbsearch', {})
-    if result['status'] != 'success':
-        return jsonify({'status': 'error', 'message': 'Failed to retrieve data'}), 500
-    
-    timer_keys = [
-        'timer_dnaseq',
-        'timer_ensembl', 
-        'timer_genbank',
-        'timer_refseq',
-        'timer_taxonomy',
-        'timer_uniprot_proteome',
-        'timer_phylogeny'
-    ]
-    
-    output_keys = {
-        'timer_dnaseq': 'NCBI SRA (DNA Sequencing)',
-        'timer_ensembl': 'ENSEMBL',
-        'timer_genbank': 'NCBI GenBank',
-        'timer_refseq': 'NCBI RefSeq',
-        'timer_taxonomy': 'Taxonomy',
-        'timer_uniprot_proteome': 'Uniprot Proteome',
-        'timer_phylogeny': 'Phylogeny'
+    """
+    Get waiting time statistics for each database search step.
+    Now retrieves timer data from individual collections (taxonomy, uniprot_proteomes, etc.)
+    """
+    collections = {
+        'Taxonomy': 'taxonomy',
+        'Uniprot Proteome': 'uniprot_proteomes',
+        'ENSEMBL': 'ensembl',
+        'NCBI RefSeq': 'refseq',
+        'NCBI GenBank': 'genbank',
+        'NCBI SRA (DNA Sequencing)': 'dnaseq',
+        'Phylogeny': 'phylogeny'
     }
     
-    # Extract timers of each dbsearch run
-    timer_values = {key: [] for key in timer_keys}
-    for doc in result['data']:
-        doc = doc['data']
-        for timer_key in timer_keys:
-            if timer_key in doc and doc[timer_key]:
-                seconds = time_to_seconds(doc[timer_key])
-                timer_values[timer_key].append(seconds)    
-
-    # Calculate min and max for each timer    
     timer_stats = {}
-    for timer_key in timer_keys:
-        if timer_values[timer_key]:
-            min_time = min(timer_values[timer_key])
-            max_time = max(timer_values[timer_key])
-            timer_stats[output_keys[timer_key]] = (seconds_to_time(min_time), seconds_to_time(max_time))
+    
+    # Query each collection and extract timer values
+    for display_name, collection_name in collections.items():
+        result = find(collection_name, {})
+        
+        if result['status'] == 'success' and result['data']:
+            timer_values = []
+            
+            # Extract timer from each document
+            for doc in result['data']:
+                if 'timer' in doc and doc['timer']:
+                    try:
+                        seconds = time_to_seconds(doc['timer'])
+                        timer_values.append(seconds)
+                    except (ValueError, IndexError):
+                        # Skip invalid timer values
+                        continue
+            
+            # Calculate min and max if we have valid data
+            if timer_values:
+                min_time = min(timer_values)
+                max_time = max(timer_values)
+                timer_stats[display_name] = (seconds_to_time(min_time), seconds_to_time(max_time))
+            else:
+                timer_stats[display_name] = None
         else:
-            timer_stats[output_keys[timer_key]] = None
+            timer_stats[display_name] = None
     
     return jsonify({
         'status': 'success',

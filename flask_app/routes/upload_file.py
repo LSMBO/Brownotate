@@ -9,6 +9,7 @@ def upload_file():
     data = request.form
     run_id = data.get('run_id')
     file_type = data.get('type')
+    print('upload_file called with run_id:', run_id, 'file_type:', file_type, 'files:', request.files)
     if not run_id or not file_type:
         return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
     process_id = f"upload_file_{run_id}"
@@ -18,6 +19,7 @@ def upload_file():
             return jsonify({'status': 'error', 'message': 'No files found'}), 400
         upload_folder = create_upload_folder()
         file_paths = handle_file_upload(request.files, upload_folder)
+        print('file_paths:', file_paths, 'file_type:', file_type)
         if len(file_paths) == 1:
             file_paths = file_paths[0]
         if file_type == "sequencing":
@@ -26,6 +28,8 @@ def upload_file():
             file_parameters = "parameters.startSection.assemblyFileOnServer"
         elif file_type == "evidence":
             file_parameters = "parameters.annotationSection.evidenceFileOnServer"
+        elif file_type == "protein_fa":
+            file_parameters = "parameters.proteinFileOnServer"
         else:
             remove_process(process_id)
             return jsonify({'status': 'error', 'message': 'Invalid file type'}), 400
@@ -48,6 +52,7 @@ def upload_file():
             return jsonify({'status': 'error', 'message': update_result['message']}), 500
 
     except Exception as e:
+        print('upload_file exception')
         error_message = str(e)
         remove_process(process_id)
         return jsonify({'status': 'error', 'message': f"Unexpected error: {error_message}"}), 500

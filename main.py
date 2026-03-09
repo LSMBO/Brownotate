@@ -19,7 +19,7 @@ def load_config(config_file):
     with open(config_file, 'r') as file:
         config = json.load(file)
         return config
-    
+
 def makeJson(title, object):
     with open(title, "w") as f:
         json.dump(object, f)

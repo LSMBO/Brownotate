@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from database_search.uniprot import UniprotTaxo
+from database_search.uniprot_taxo import UniprotTaxo
 import database_search.wiki as wiki
 from flask_app.database import find, insert_one
 import json, datetime, os
@@ -9,49 +9,49 @@ dbs_taxonomy_bp = Blueprint('dbs_taxonomy_bp', __name__)
 
 @dbs_taxonomy_bp.route('/dbs_taxonomy', methods=['POST'])
 def dbs_taxonomy():
-    start_time = timer.start()
-    user = request.json.get('user')
-    create_new_dbs = request.json.get('createNewDBS')
-    dbsearch = request.json.get('dbsearch')
-    
-    scientific_name = dbsearch['scientificName']
-    taxID = dbsearch['taxonId']
-    current_datetime = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
+    try:
+        start_time = timer.start()
+        user = request.json.get('user')
+        taxonomy = request.json.get('taxonomy')
+        scientific_name = taxonomy['scientificName']
+        taxID = taxonomy['taxonId']
+        current_datetime = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
 
-    if not user or not taxID:
-        return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
-    
-    run_id = request.json.get('run_id', f"DBS-{taxID}-{current_datetime}")
-    output_data = {
-        'run_id': run_id,
-        'status': 'taxonomy',
-        'date': current_datetime,
-        'data': {}
-    }
-    taxo = UniprotTaxo(taxID, run_id=run_id)
-    output_data['data']['taxonomy'] = taxo.get_taxonomy()
-    taxo_image_url = wiki.download_species_image(output_data['data']['taxonomy']['scientificName'])
-    output_data['data']['taxo_image_url'] = taxo_image_url
-    print(f"dbs_taxonomy results: {output_data['data']}")
-    timer_str = timer.stop(start_time)
-    print(f"Timer dbs_taxonomy: {timer_str}")
-    output_data['data']['timer_taxonomy'] = timer_str
-    
-    mongo_query = {
-            'user': user,
-            'run_id': run_id,
-            'status': 'taxonomy',
+        if not user or not taxID:
+            return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
+
+        taxo = UniprotTaxo(taxID, run_id=current_datetime)
+        taxonomy_data = taxo.get_taxonomy()
+        taxo_image_url = wiki.download_species_image(taxonomy_data['scientificName'])
+        timer_str = timer.stop(start_time)
+
+        mongo_query = {
+            'user': user, 
+            'timer': timer_str,
             'date': current_datetime,
-            'taxid': taxID,
             'scientific_name': scientific_name,
-            'data': output_data['data']
+            'taxid': taxID,
+            'taxo_image_url': taxo_image_url,
+            'data': taxonomy_data
         }
-    
-    if create_new_dbs:
-        insert_one('dbsearch', mongo_query)
-    
-    os.makedirs(os.path.join('output_runs', run_id), exist_ok=True)
-    with open(os.path.join('output_runs', run_id, 'Database_Search.json'), 'w') as f:
-        json.dump(output_data['data'], f)
-    
-    return jsonify(output_data)
+
+        insert_one('taxonomy', mongo_query)
+        
+        response_data = {
+            'user': user,
+            'timer': timer_str,
+            'date': current_datetime,
+            'scientific_name': scientific_name,
+            'taxid': taxID,
+            'taxo_image_url': taxo_image_url,
+            'data': taxonomy_data
+        }
+        
+        return jsonify({'status': 'success', 'data': response_data}), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': 'An unexpected error occurred',
+            'timer': timer.stop(start_time),
+            'details': str(e)
+        }), 500

@@ -1,6 +1,6 @@
 import os
 from flask import Blueprint, jsonify
-from process_manager import get_cpus_used, get_max_cpu_usage_by_process
+from flask_app.process_manager import get_cpus_used, get_max_cpu_usage_by_process
 
 
 get_cpus_bp = Blueprint('get_cpus_bp', __name__)

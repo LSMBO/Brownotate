@@ -61,6 +61,33 @@ cd /path/to/Brownotate
 conda env create -f environment_sra_download.yml
 ```
 
+For Brownaming (protein naming):
+
+```
+cd /path/to/Brownotate/
+conda env create -f environment_brownaming.yml
+```
+
+### Setup Brownaming Database
+
+Brownaming requires a local DIAMOND database for protein homology searches. For more details, see the [Brownaming GitHub repository](https://github.com/LSMBO/Brownaming).
+
+**Important:** Before creating the database, make sure to configure the `BROWNAMING_DB` variable in `config.json` (see below) with the path to the database directory.
+
+```
+cd /path/to/Brownotate/Brownaming
+./create_local_db.sh
+```
+
+This will:
+* Download UniProt Swiss‑Prot + TrEMBL (current release)
+* Extract TaxIDs and generate taxonomy files
+* Build DIAMOND databases (full and SwissProt only)
+
+**Duration:** ~8 hours  
+**Disk space required:** ~120-150 GB
+
+
 ### Configure MongoDB
 
 1. **Download MongoDB Community Server:** 
@@ -112,9 +139,14 @@ sudo dpkg -i mongodb-mongosh_2.3.0_amd64.deb
 mongosh
 use brownotate-db
 db.createCollection("users")
-db.createCollection("dbsearch")
 db.createCollection("runs")
 db.createCollection("processes")
+db.createCollection("taxonomy")
+db.createCollection("uniprot")
+db.createCollection("ensembl")
+db.createCollection("refseq")
+db.createCollection("genbank")
+db.createCollection("dnaseq")
 ```
 
 ### Configure `config.json`
@@ -127,7 +159,8 @@ Edit the `config.json` file located in the root directory of the project:
   "MONGO_URI": "",
   "BROWNOTATE_PATH": "",
   "BROWNOTATE_ENV_PATH": "",
-  "SRA_DOWNLOAD_ENV_PATH": ""
+  "SRA_DOWNLOAD_ENV_PATH": "",
+  "BROWNAMING_DB": ""
 }
 ```
 
@@ -135,6 +168,7 @@ Edit the `config.json` file located in the root directory of the project:
 - **`BROWNOTATE_PATH`**: This should be the directory where you cloned the Brownotate repository.
 - **`BROWNOTATE_ENV_PATH`**: Use the command `conda info --envs` to locate the path to the br Conda environment.
 - **`SRA_DOWNLOAD_ENV_PATH`**: Use the command `conda info --envs` to locate the path to the sra-download Conda environment.
+- **`BROWNAMING_DB`**: Path to the Brownaming database created with `create_local_db.sh` (e.g., `/path/to/brownaming_db`).
 
 ## Running Brownotate
 

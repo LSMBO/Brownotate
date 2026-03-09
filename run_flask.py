@@ -3,7 +3,7 @@ import os
 import tempfile
 
 tempfile.tempdir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'user_download/tmp'))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'flask_app')))
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 
 from flask_app.app import app

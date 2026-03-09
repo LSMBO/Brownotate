@@ -1,7 +1,7 @@
 import os
 from flask import Blueprint, request, jsonify, send_file
 from flask_app.file_ops import download_zip
-from utils import load_config
+from flask_app.utils import load_config
 
 download_server_bp = Blueprint('download_server_bp', __name__)
 config = load_config()

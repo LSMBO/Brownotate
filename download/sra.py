@@ -3,7 +3,7 @@ import os
 import json
 import shlex
 from timer import timer
-from utils import load_config
+from flask_app.utils import load_config
 from flask import Blueprint, request, jsonify
 from flask_app.file_ops import create_download_folder
 from flask_app.process_manager import add_process, remove_process
