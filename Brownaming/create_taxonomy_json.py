@@ -10,19 +10,15 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, r2_score
 
 
-# Read local_db_path from environment variable first, then from config.json
-local_db_path = os.environ.get("LOCAL_DB_PATH")
+CONFIG = {}
+config_file = os.path.join(os.path.dirname(__file__), "../config.json")
+if os.path.exists(config_file):
+    with open(config_file, "r") as f:
+        CONFIG = json.load(f)
+    local_db_path = CONFIG.get("BROWNAMING_DB", None)
 
 if not local_db_path:
-    CONFIG = {}
-    config_file = os.path.join(os.path.dirname(__file__), "config.json")
-    if os.path.exists(config_file):
-        with open(config_file, "r") as f:
-            CONFIG = json.load(f)
-        local_db_path = CONFIG.get("local_db_path", None)
-
-if not local_db_path:
-    print("[ERROR] 'local_db_path' not set in LOCAL_DB_PATH environment variable or config.json")
+    print("[ERROR] 'BROWNAMING_DB' not set in config.json")
     exit()
     
 nodes_path = os.path.join(local_db_path, "taxonomy", "nodes.dmp")

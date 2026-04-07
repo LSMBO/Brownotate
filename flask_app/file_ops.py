@@ -18,6 +18,7 @@ def create_download_folder():
     current_date = datetime.datetime.now().strftime("%d-%m-%Y")
     download_folder = os.path.join('user_download', current_date)
     os.makedirs(download_folder, exist_ok=True)
+    os.makedirs(os.path.join(download_folder, 'tmp'), exist_ok=True)
     return download_folder
 
 def move_wd_to_output_runs_folder(wd):

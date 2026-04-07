@@ -6,7 +6,9 @@ Before setting up your own Brownotate server, you can try a ***demo version*** w
 
 ## Prerequisites
 
--**Operating System**: Linux (Ubuntu 22.04 or similar). Make sure to use a Linux server as Conda dependencies are not compatible with other operating systems.
+- **Operating System**: Linux (Ubuntu 22.04 or similar). Make sure to use a Linux server as Conda dependencies are not compatible with other operating systems.
+- **Docker**: Required for running certain bioinformatics tools (e.g., CANU genome assembler). Installation instructions are provided below.
+- **Disk Space**: At least 150-200 GB of free disk space for databases and temporary files.
 
 ## Installation
 
@@ -68,6 +70,46 @@ cd /path/to/Brownotate/
 conda env create -f environment_brownaming.yml
 ```
 
+If already installed, update them:
+```
+conda env update -f environment_br.yml
+conda env update -f environment_sra_download.yml
+conda env update -f environment_brownaming.yml
+```
+
+### Install and Configure Docker
+
+Brownotate uses Docker to run certain bioinformatics tools (e.g., CANU for genome assembly).
+
+1. **Install Docker:**
+
+Follow the official installation instructions for your Linux distribution:
+[https://docs.docker.com/engine/install/](https://docs.docker.com/engine/install/)
+
+2. **Configure Docker permissions:**
+
+Add your user to the `docker` group to allow running Docker without `sudo`:
+
+```bash
+sudo usermod -aG docker $USER
+```
+
+**Important:** You must log out and log back in (or restart your terminal session) for the group changes to take effect.
+
+3. **Verify the installation:**
+
+```bash
+docker run hello-world
+```
+
+4. **Pull required Docker images:**
+
+Brownotate uses the CANU assembler via Docker. Pull the image:
+
+```bash
+docker pull quay.io/biocontainers/canu:2.2--ha47f30e_0
+```
+
 ### Setup Brownaming Database
 
 Brownaming requires a local DIAMOND database for protein homology searches. For more details, see the [Brownaming GitHub repository](https://github.com/LSMBO/Brownaming).
@@ -76,6 +118,8 @@ Brownaming requires a local DIAMOND database for protein homology searches. For 
 
 ```
 cd /path/to/Brownotate/Brownaming
+conda activate brownaming
+sudo chmod +x create_local_db.sh
 ./create_local_db.sh
 ```
 

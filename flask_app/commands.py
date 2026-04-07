@@ -10,7 +10,7 @@ config = load_config()
 env = os.environ.copy()
 env['PATH'] = os.path.join(config['BROWNOTATE_ENV_PATH'], 'bin') + os.pathsep + env['PATH']
    
-def run_command(command, wd, cpus=1, stdout_path=None, stderr_path=None, env=env, shell=False):
+def run_command(command, wd, cpus=1, stdout_path=None, stderr_path=None, env=env, shell=False, cwd=None):
     process = None
     process_id = None
     try:
@@ -30,6 +30,7 @@ def run_command(command, wd, cpus=1, stdout_path=None, stderr_path=None, env=env
             stderr=stderr_handle, 
             text=True, 
             shell=shell,
+            cwd=cwd,
             preexec_fn=os.setsid
         )
         process_id = process.pid
@@ -131,12 +132,40 @@ def run_docker_command(image, command, wd, cpus=1, volumes=None, working_dir=Non
         process_id = hash(container_id) % (10 ** 8)  # Convert to a reasonable integer
         add_process(wd, process_id, f"docker:{cmd}", cpus)
         
-        # Wait for container to finish and collect logs
-        result = container.wait()
-        returncode = result['StatusCode']
+        print(f"Docker container started with ID: {container_id}")
+        print(f"Waiting for container to finish (this may take hours for heavy operations like CANU)...")
         
-        # Get logs (stdout + stderr combined by default in Docker)
-        logs = container.logs(stdout=True, stderr=True).decode('utf-8')
+        # Stream logs in real-time to keep connection alive and provide progress updates
+        # This prevents HTTP timeout issues with long-running containers like CANU
+        logs_output = []
+        try:
+            for log_line in container.logs(stream=True, follow=True):
+                line = log_line.decode('utf-8', errors='replace')
+                logs_output.append(line)
+                # Print every 100 lines to show progress without flooding
+                if len(logs_output) % 100 == 0:
+                    print(f"Container progress: {len(logs_output)} log lines received...")
+            
+            # Container has finished streaming, get final exit code
+            container.reload()
+            exit_code = container.attrs['State']['ExitCode']
+            returncode = exit_code
+            logs = ''.join(logs_output)
+            print(f"Docker container finished with return code: {returncode}")
+            print(f"Total output: {len(logs_output)} log lines, {len(logs)} bytes")
+            
+        except Exception as stream_error:
+            print(f"Error during log streaming: {str(stream_error)}")
+            print(f"Falling back to wait() method...")
+            # Fallback to original wait method if streaming fails
+            try:
+                result = container.wait(timeout=client_timeout)
+                returncode = result['StatusCode']
+                logs = container.logs(stdout=True, stderr=True).decode('utf-8')
+                print(f"Docker container finished with return code: {returncode} (fallback method)")
+            except Exception as wait_error:
+                print(f"Error in fallback wait: {str(wait_error)}")
+                raise stream_error
         
         # Split logs into stdout and stderr if needed (Docker combines them)
         # For now, we'll put everything in stdout
@@ -156,15 +185,22 @@ def run_docker_command(image, command, wd, cpus=1, volumes=None, working_dir=Non
         
         return stdout, stderr, returncode
         
-    except docker.errors.ImageNotFound:
+    except docker.errors.ImageNotFound as e:
         error_msg = f"Docker image not found: {image}"
         print(error_msg)
+        print(f"Full error: {str(e)}")
         return '', error_msg, 1
         
     except docker.errors.ContainerError as e:
         error_msg = f"Container error: {str(e)}"
         print(error_msg)
         return '', error_msg, e.exit_status
+    
+    except docker.errors.APIError as e:
+        error_msg = f"Docker API error: {str(e)}"
+        print(error_msg)
+        print(f"Full error details: {e.explanation if hasattr(e, 'explanation') else 'No details'}")
+        return '', error_msg, 1
         
     except Exception as e:
         error_msg = f"Docker command failed: {str(e)}"

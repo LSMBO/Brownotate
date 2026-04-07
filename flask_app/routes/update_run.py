@@ -12,6 +12,7 @@ def update_run():
     run_id = data.get('run_id')
     field = data.get('field')
     value = data.get('value')
+    print(f"[/update_run] Received update for run_id: {run_id}, field: {field}, value: {value}")
     
     if field == 'progress':
         find_run_results = find_one('runs', {'parameters.id': int(run_id)})
@@ -26,4 +27,5 @@ def update_run():
         update_result = update_one('runs', {"parameters.id": int(run_id)}, {"$set": update_dict})
     else:
         update_result = update_one('runs', {"parameters.id": int(run_id)}, {"$set": {field: value}})
+    print(f"[/update_run] Update result success")
     return jsonify({'status': 'success', 'message': 'Run status updated successfully'}), 200

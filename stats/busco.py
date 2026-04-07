@@ -17,9 +17,10 @@ def run_busco():
     start_time = timer.start()
     parameters = request.json.get('parameters')
     wd = parameters['id']
+    run_dir = os.path.abspath(f"runs/{wd}")
     cpus = parameters['cpus']
     mode = request.json.get('mode')
-    input_file = request.json.get('input_file')
+    input_file = os.path.abspath(request.json.get('input_file'))
     taxo = parameters['species']
 
     output_rep = f"runs/{wd}/busco_genome"
@@ -32,11 +33,11 @@ def run_busco():
         
     busco_lineage = get_busco_lineage(taxo)
     if os.path.exists(f"stats/{busco_lineage}"):
-        busco_lineage_path = f"stats/{busco_lineage}"
+        busco_lineage_path = os.path.abspath(f"stats/{busco_lineage}")
         command = get_command(cpus, input_file, output_rep_name, mode, busco_lineage_path, True, wd)
     else:
         command = get_command(cpus, input_file, output_rep_name, mode, busco_lineage, False, wd) 
-    stdout, stderr, returncode = run_command(command, wd, cpus=cpus, stdout_path=f"runs/{wd}/log_bin")
+    stdout, stderr, returncode = run_command(command, wd, cpus=cpus, stdout_path=f"runs/{wd}/log_bin", cwd=run_dir)
     if returncode != 0:          
         return jsonify({
             'status': 'error',
@@ -101,8 +102,8 @@ def get_busco_lineage(taxo):
     return search_best_lineage(lineage_tree, lineage_names)
 
 def get_command(cpus, input_file, output_rep, mode, lineage, offline, wd):
-    download_path = f"runs/{wd}/busco_downloads"
-    base_cmd = f"busco -c {cpus} -i {input_file} -o {output_rep} -m {mode} -l {lineage} --out_path runs/{wd} --download_path {download_path} --metaeuk"
+    download_path = "busco_downloads"
+    base_cmd = f"busco -c {cpus} -i {input_file} -o {output_rep} -m {mode} -l {lineage} --out_path . --download_path {download_path} --metaeuk"
     if offline:
         return base_cmd + " --offline"
     return base_cmd

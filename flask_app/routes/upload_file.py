@@ -9,7 +9,6 @@ def upload_file():
     data = request.form
     run_id = data.get('run_id')
     file_type = data.get('type')
-    print('upload_file called with run_id:', run_id, 'file_type:', file_type, 'files:', request.files)
     if not run_id or not file_type:
         return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
     process_id = f"upload_file_{run_id}"
