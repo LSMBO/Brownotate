@@ -1,150 +1,180 @@
-import shutil
-import os, sys
+import glob
 import json
-import csv
-from timer import timer
-from flask_app.utils import load_config
-from flask import Blueprint, request, jsonify
+import os
+import re
+import shlex
+
+from flask import Blueprint, jsonify, request
+
 from flask_app.commands import run_command
+from flask_app.step_status import mark_step_error, mark_step_running, mark_step_success
+from flask_app.utils import load_config
+from timer import timer
 
 run_busco_bp = Blueprint('run_busco_bp', __name__)
 config = load_config()
-env = os.environ.copy()
-env['PATH'] = os.path.join(config['BROWNOTATE_ENV_PATH'], 'bin') + os.pathsep + env['PATH']
+
+
+def _resolve_lineage(parameters):
+    species = parameters.get('species', {})
+    lineage = species.get('lineage') or []
+    lineage_names = [item.get('scientificName', '').lower() for item in lineage if isinstance(item, dict)]
+
+    if species.get('is_bacteria'):
+        return 'bacteria_odb10'
+
+    if 'basidiomycota' in lineage_names:
+        return 'basidiomycota_odb10'
+    if 'saccharomycetes' in lineage_names:
+        return 'saccharomycetes_odb10'
+
+    return 'eukaryota_odb10'
+
+
+def _read_busco_summary(stats_dir, output_name):
+    json_pattern = os.path.join(stats_dir, output_name, '**', 'short_summary*.json')
+    summary_json_files = glob.glob(json_pattern, recursive=True)
+    for json_file_path in summary_json_files:
+        try:
+            with open(json_file_path, 'r') as summary_file:
+                return json.load(summary_file)
+        except Exception:
+            # BUSCO can leave a partial/corrupt json when it crashes during serialization.
+            continue
+
+    txt_pattern = os.path.join(stats_dir, output_name, '**', 'short_summary*.txt')
+    summary_txt_files = glob.glob(txt_pattern, recursive=True)
+    if not summary_txt_files:
+        return {}
+
+    with open(summary_txt_files[0], 'r') as summary_file:
+        summary_text = summary_file.read().strip()
+
+    if not summary_text:
+        return {}
+
+    parsed_summary = {'raw_summary': summary_text}
+
+    # Example line:
+    # C:99.6%[S:95.7%,D:3.9%],F:0.4%,M:0.0%,n:255,E:7.9%
+    score_match = re.search(
+        r'C:(?P<C>[\d.]+)%\[S:(?P<S>[\d.]+)%,D:(?P<D>[\d.]+)%\],'
+        r'F:(?P<F>[\d.]+)%,M:(?P<M>[\d.]+)%,n:(?P<n>\d+)(?:,E:(?P<E>[\d.]+)%)?',
+        summary_text,
+    )
+    if score_match:
+        score_data = score_match.groupdict()
+        parsed_summary['scores'] = {
+            'C': float(score_data['C']),
+            'S': float(score_data['S']),
+            'D': float(score_data['D']),
+            'F': float(score_data['F']),
+            'M': float(score_data['M']),
+            'n': int(score_data['n']),
+        }
+        if score_data.get('E') is not None:
+            parsed_summary['scores']['E'] = float(score_data['E'])
+
+    return parsed_summary
+
+
+def _output_json_path(run_id, mode):
+    file_name = 'Busco_genome.json' if mode == 'genome' else 'Busco_annotation.json'
+    return os.path.join(config['BROWNOTATE_PATH'], 'runs', str(run_id), file_name)
+
+
+def _resolve_input_file_path(input_file):
+    if not input_file:
+        return None
+    if os.path.isabs(input_file):
+        return input_file
+    return os.path.join(config['BROWNOTATE_PATH'], input_file)
+
 
 @run_busco_bp.route('/run_busco', methods=['POST'])
 def run_busco():
     start_time = timer.start()
-    parameters = request.json.get('parameters')
-    wd = parameters['id']
-    run_dir = os.path.abspath(f"runs/{wd}")
-    cpus = parameters['cpus']
-    mode = request.json.get('mode')
-    input_file = os.path.abspath(request.json.get('input_file'))
-    taxo = parameters['species']
 
-    output_rep = f"runs/{wd}/busco_genome"
-    output_rep_name = "busco_genome"
-    if mode == "proteins":
-        output_rep = f"runs/{wd}/busco_annotation"
-        output_rep_name = "busco_annotation"
-    if os.path.exists(output_rep):
-        shutil.rmtree(output_rep)
-        
-    busco_lineage = get_busco_lineage(taxo)
-    if os.path.exists(f"stats/{busco_lineage}"):
-        busco_lineage_path = os.path.abspath(f"stats/{busco_lineage}")
-        command = get_command(cpus, input_file, output_rep_name, mode, busco_lineage_path, True, wd)
-    else:
-        command = get_command(cpus, input_file, output_rep_name, mode, busco_lineage, False, wd) 
-    stdout, stderr, returncode = run_command(command, wd, cpus=cpus, stdout_path=f"runs/{wd}/log_bin", cwd=run_dir)
-    if returncode != 0:          
+    parameters = request.json.get('parameters')
+    input_file = request.json.get('input_file')
+    mode = request.json.get('mode', 'genome')
+
+    run_id = int(parameters['id'])
+    cpus = int(parameters.get('cpus') or 0) or os.cpu_count() or 1
+    step_payload = {'mode': mode}
+    mark_step_running(run_id, 'busco', payload=step_payload)
+
+    stats_dir = os.path.join(config['BROWNOTATE_PATH'], 'runs', str(run_id), 'stats')
+    os.makedirs(stats_dir, exist_ok=True)
+
+    resolved_input_file = _resolve_input_file_path(input_file)
+    if not resolved_input_file or not os.path.exists(resolved_input_file):
+        elapsed = timer.stop(start_time)
+        mark_step_error(run_id, 'busco', f'BUSCO input file does not exist: {resolved_input_file}', payload=step_payload)
         return jsonify({
             'status': 'error',
-            'message': f'Busco command failed',
+            'message': f'BUSCO input file does not exist: {resolved_input_file}',
+            'timer': elapsed,
+        }), 400
+
+    lineage = _resolve_lineage(parameters)
+    output_name = f'busco_{mode}'
+
+    command = (
+        f'busco -i {shlex.quote(resolved_input_file)} '
+        f'-m {mode} '
+        f'-l {lineage} '
+        f'-o {output_name} '
+        f'--cpu {cpus} --force'
+    )
+
+    stdout_path = os.path.join(stats_dir, f'busco_{mode}.out')
+    stderr_path = os.path.join(stats_dir, f'busco_{mode}.err')
+    stdout, stderr, returncode = run_command(
+        command,
+        run_id,
+        cpus=cpus,
+        cwd=stats_dir,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+    )
+
+    # BUSCO can fail at final JSON export (e.g. float32 serialization) after producing valid summaries.
+    summary_data = _read_busco_summary(stats_dir, output_name)
+
+    if returncode != 0:
+        if summary_data:
+            elapsed = timer.stop(start_time)
+            output_json = _output_json_path(run_id, mode)
+            with open(output_json, 'w') as output_file:
+                json.dump(summary_data, output_file)
+            mark_step_success(run_id, 'busco', result=summary_data, timer_value=elapsed, payload=step_payload)
+            return jsonify({
+                'status': 'success',
+                'data': summary_data,
+                'timer': elapsed,
+                'warning': 'BUSCO returned non-zero but summary output was recovered from run artifacts.'
+            }), 200
+
+        elapsed = timer.stop(start_time)
+        mark_step_error(run_id, 'busco', 'BUSCO command failed', payload=step_payload)
+        return jsonify({
+            'status': 'error',
+            'message': 'BUSCO command failed',
             'command': command,
-            'stderr': stderr,
             'stdout': stdout,
-            'timer': timer.stop(start_time)
-        }), 500    
+            'stderr': stderr,
+            'timer': elapsed,
+        }), 500
 
-    lineage_dir = f"runs/{wd}/busco_downloads/lineages/{busco_lineage}"
-    if os.path.exists(lineage_dir):
-        shutil.move(lineage_dir, f"stats/{busco_lineage}")
-    if os.path.exists(f"runs/{wd}/busco_downloads"):
-        shutil.rmtree(f"runs/{wd}/busco_downloads")
-    if os.path.exists(f"runs/{wd}/log_bin"):
-        os.remove(f"runs/{wd}/log_bin")
-        
-    result = get_busco_result(output_rep, busco_lineage)
-    if os.path.exists(f"run_{busco_lineage}"):
-        shutil.rmtree(f"run_{busco_lineage}")
+    output_json = _output_json_path(run_id, mode)
+    with open(output_json, 'w') as output_file:
+        json.dump(summary_data, output_file)
 
-    if mode=='genome':    
-        make_json(f"runs/{wd}/Busco_genome.json", result)
-        
-    else:
-        make_json(f"runs/{wd}/Busco_annotation.json", result)
-
+    elapsed = timer.stop(start_time)
+    mark_step_success(run_id, 'busco', result=summary_data, timer_value=elapsed, payload=step_payload)
     return jsonify({
-        'status': 'success', 
-        'data': result, 
-        'timer': timer.stop(start_time)
+        'status': 'success',
+        'data': summary_data,
+        'timer': elapsed,
     }), 200
-
-def make_json(title, object):
-    with open(title, "w") as f:
-        json.dump(object, f)
-
-def get_busco_lineage(taxo):
-    lineage_names = [entry['scientificName'].lower() for entry in taxo['lineage']]
-
-    with open("stats/busco_lineages.txt", 'r') as lineages_file:
-        lines = lineages_file.readlines()
-        
-    lineage_tree = {}
-    current_level = [lineage_tree]
-
-    for line in lines:
-        level = line.count('    ')
-        lineage_name = line.strip()
-        current_level = current_level[:level + 1]
-        current_level[-1][lineage_name] = {}
-        current_level.append(current_level[-1][lineage_name])
-
-    def search_best_lineage(tree, names, last_key=None):
-        for name in names:
-            name_with_suffix = f"{name}_odb10"
-            if name_with_suffix in tree:
-                return search_best_lineage(tree[name_with_suffix], names, name_with_suffix)
-        return last_key
-    
-    return search_best_lineage(lineage_tree, lineage_names)
-
-def get_command(cpus, input_file, output_rep, mode, lineage, offline, wd):
-    download_path = "busco_downloads"
-    base_cmd = f"busco -c {cpus} -i {input_file} -o {output_rep} -m {mode} -l {lineage} --out_path . --download_path {download_path} --metaeuk"
-    if offline:
-        return base_cmd + " --offline"
-    return base_cmd
-
-def get_full_table_path(output_rep, lineage):
-    file_path = os.path.join(output_rep, f"run_{lineage}/full_table.tsv")
-    if os.path.exists(file_path):
-        return file_path
-
-def get_busco_result(output_rep, lineage):
-    result = {}
-    for file in os.listdir(output_rep):
-        if file.endswith(".json"):
-            with open(output_rep+"/"+file) as f:
-                result = json.load(f)
-    full_table_path = get_full_table_path(output_rep, lineage)
-    if full_table_path:
-        with open(full_table_path, newline='') as tsvfile:
-            next(tsvfile)
-            next(tsvfile)
-            header = next(tsvfile).strip().split('\t')
-            reader = csv.DictReader(tsvfile, delimiter='\t', fieldnames=header)
-            completed = []
-            fragmented = []
-            duplicated = []
-            missing = []
-            for row in reader:
-                if row["Status"] == 'Complete':
-                    completed.append(row["# Busco id"])
-                elif row["Status"] == 'Fragmented':
-                    fragmented.append(row["# Busco id"])
-                elif row["Status"] == 'Duplicated':
-                    duplicated.append(row["# Busco id"])
-                elif row["Status"] == 'Missing':
-                    missing.append(row["# Busco id"])
-            full_table_result = {
-                "completed": completed,
-                "fragmented": fragmented,
-                "duplicated": duplicated,
-                "missing": missing
-            }
-            result["full_table"] = full_table_result
-    return result
-

@@ -60,6 +60,7 @@ from flask_app.routes.get_cpus import get_cpus_bp
 from flask_app.routes.waiting_time_dbsearch import waiting_time_dbsearch_bp
 from flask_app.routes.waiting_time_annotation import waiting_time_annotation_bp
 from flask_app.routes.set_annotation_completed import set_annotation_completed_bp
+from flask_app.routes.async_pipeline import async_pipeline_bp
 
 
 app = Flask(__name__)
@@ -129,3 +130,4 @@ app.register_blueprint(get_cpus_bp)
 app.register_blueprint(waiting_time_dbsearch_bp)
 app.register_blueprint(waiting_time_annotation_bp)
 app.register_blueprint(set_annotation_completed_bp)
+app.register_blueprint(async_pipeline_bp)

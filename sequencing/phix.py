@@ -4,6 +4,7 @@ from timer import timer
 from flask_app.utils import load_config
 from flask import Blueprint, request, jsonify
 from flask_app.commands import run_command
+from flask_app.step_status import mark_step_error, mark_step_running, mark_step_success
 
 run_remove_phix_bp = Blueprint('run_remove_phix_bp', __name__)
 config = load_config()
@@ -45,6 +46,7 @@ def run_phix():
     wd = parameters['id']
     cpus = parameters['cpus']
     sequencing_file_list = request.json.get('sequencing_file_list')
+    mark_step_running(wd, 'remove_phix')
 
     output_files = []
     seq_tmpdir = os.path.abspath(f"runs/{wd}/seq")
@@ -73,13 +75,15 @@ def run_phix():
         
         stdout, stderr, returncode = run_command(command, wd, cpus=cpus, env=local_env, stdout_path=bowtie_log_null, stderr_path=bowtie_log_path)
         if returncode != 0:
+            elapsed = timer.stop(start_time)
+            mark_step_error(wd, 'remove_phix', f'bowtie2 failed for {accession}')
             return jsonify({
                 'status': 'error',
                 'message': f'bowtie2 failed for {accession}',
                 'command': command,
                 'stderr': stderr,
                 'stdout': stdout,
-                'timer': timer.stop(start_time)
+                'timer': elapsed
             }), 500        
         
         # Clean up
@@ -106,8 +110,10 @@ def run_phix():
                 
         output_files.append(updated_sequencing_file)
 
+    elapsed = timer.stop(start_time)
+    mark_step_success(wd, 'remove_phix', result=output_files, timer_value=elapsed)
     return jsonify({
         'status': 'success', 
         'data': output_files, 
-        'timer': timer.stop(start_time)
+        'timer': elapsed
     }), 200

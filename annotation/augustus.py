@@ -9,6 +9,7 @@ from flask_app.utils import load_config
 from flask import Blueprint, request, jsonify
 import shutil
 from flask_app.commands import run_command
+from flask_app.step_status import mark_step_error, mark_step_running, mark_step_success
 
 run_augustus_bp = Blueprint('run_augustus_bp', __name__)
 config = load_config()
@@ -24,6 +25,7 @@ def run_augustus():
     split_assembly_files = request.json.get('split_assembly_files')
     cpus = parameters['cpus']
     wd = parameters['id']
+    mark_step_running(wd, 'augustus')
     
     current_dir = os.getcwd()
     work_dir = f"runs/{wd}/annotation/augustus"
@@ -49,23 +51,27 @@ def run_augustus():
             annotation_files.append(res)
 
         if error_response:
+            elapsed = timer.stop(start_time)
+            mark_step_error(wd, 'augustus', 'Augustus command failed')
             return jsonify({
                 'status': 'error',
                 'message': 'Augustus command failed',
                 'command': error_response.get('command'),
                 'stdout': error_response.get('stdout'),
                 'stderr': error_response.get('stderr'),
-                'timer': timer.stop(start_time)
+                'timer': elapsed
             }), 500
         
         concatenate_files(annotation_files, wd, annotation_concatenated_file)
         # clean(split_assembly_files, wd)
                 
         
+        elapsed = timer.stop(start_time)
+        mark_step_success(wd, 'augustus', result=annotation_concatenated_file, timer_value=elapsed)
         return jsonify({
             'status': 'success', 
             'data': annotation_concatenated_file, 
-            'timer': timer.stop(start_time)
+            'timer': elapsed
         }), 200
     
 def run_augustus_worker(assembly_file, output_name, wd):

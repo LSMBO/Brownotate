@@ -4,6 +4,7 @@ from timer import timer
 from flask_app.utils import load_config
 from flask import Blueprint, request, jsonify
 from flask_app.commands import run_command
+from flask_app.step_status import mark_step_error, mark_step_running, mark_step_success
 from Bio import SeqIO
 from Bio.Seq import Seq
 
@@ -20,6 +21,7 @@ def run_prokka():
     wd = parameters['id']
     cpus = parameters['cpus']
     assembly_file = request.json.get('assembly_file')
+    mark_step_running(wd, 'prokka')
         
     if os.path.exists(f"runs/{wd}/annotation"):
         shutil.rmtree(f"runs/{wd}/annotation")
@@ -29,24 +31,28 @@ def run_prokka():
     
     command = f"prokka --outdir runs/{wd}/annotation --prefix prokka_annotation --cpus {cpus} --noanno --norrna --notrna {assembly_file}"
     stdout, stderr, returncode = run_command(command, wd, cpus=cpus)
-    if returncode != 0:          
+    if returncode != 0:
+        elapsed = timer.stop(start_time)
+        mark_step_error(wd, 'prokka', 'Prokka command failed')
         return jsonify({
             'status': 'error',
             'message': f'Prokka command failed',
             'command': command,
             'stderr': stderr,
             'stdout': stdout,
-            'timer': timer.stop(start_time)
+            'timer': elapsed
         }), 500    
     
     change_owner_recursive(f"runs/{wd}/annotation")
     clear_and_rename(wd, annotation_file)
     rename_fasta_headers(annotation_file)
     
+    elapsed = timer.stop(start_time)
+    mark_step_success(wd, 'prokka', result=annotation_file, timer_value=elapsed)
     return jsonify({
         'status': 'success', 
         'data': annotation_file, 
-        'timer': timer.stop(start_time)
+        'timer': elapsed
     }), 200
 
 def rename_fasta_headers(annotation_file):

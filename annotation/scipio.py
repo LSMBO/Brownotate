@@ -8,8 +8,10 @@ from timer import timer
 from flask_app.utils import load_config
 from flask import Blueprint, request, jsonify
 from flask_app.process_manager import add_process, remove_process, remove_run_processes
+from flask_app.step_status import mark_step_error, mark_step_running, mark_step_success
 import shutil
 import traceback
+import time
 
 run_scipio_bp = Blueprint('run_scipio_bp', __name__)
 config = load_config()
@@ -27,35 +29,94 @@ def run_scipio():
     run_id = parameters['id']
     cpus = parameters['cpus']
     split_assembly_files = request.json.get('split_assembly_files')
+    step_payload = {'flex': bool(flex)}
+    mark_step_running(run_id, 'scipio', payload=step_payload)
+    annotation_dir = f"runs/{run_id}/annotation"
+    os.makedirs(annotation_dir, exist_ok=True)
+    genesraw = f"{annotation_dir}/genes.raw.gb"
+    lock_file = f"{annotation_dir}/.scipio.lock"
 
-    with ThreadPoolExecutor(max_workers=cpus) as executor:
-        results = []
-        for i, assembly_file in enumerate(split_assembly_files):
-            work_dir = f"runs/{run_id}/annotation/scipio_work_dir_{i+1}"
-            os.makedirs(work_dir, exist_ok=True)
+    if os.path.exists(genesraw) and os.path.getsize(genesraw) > 0:
+        elapsed = timer.stop(start_time)
+        mark_step_success(run_id, 'scipio', result=genesraw, timer_value=elapsed, payload=step_payload)
+        return jsonify({'status': 'success', 'data': genesraw, 'timer': elapsed}), 200
+
+    lock_fd = try_acquire_lock(lock_file)
+    if lock_fd is None:
+        if wait_for_existing_scipio_result(genesraw, lock_file):
+            elapsed = timer.stop(start_time)
+            mark_step_success(run_id, 'scipio', result=genesraw, timer_value=elapsed, payload=step_payload)
+            return jsonify({'status': 'success', 'data': genesraw, 'timer': elapsed}), 200
+        elapsed = timer.stop(start_time)
+        mark_step_error(run_id, 'scipio', 'Scipio appears to have failed after network interruption.', payload=step_payload)
+        return jsonify({'status': 'error', 'message': 'Scipio appears to have failed after network interruption.', 'timer': elapsed}), 500
+
+    try:
+        with ThreadPoolExecutor(max_workers=cpus) as executor:
+            results = []
+            for i, assembly_file in enumerate(split_assembly_files):
+                work_dir = f"runs/{run_id}/annotation/scipio_work_dir_{i+1}"
+                os.makedirs(work_dir, exist_ok=True)
+                
+                if not flex:
+                    result = executor.submit(run_scipio_worker, run_id, assembly_file, evidence_file, work_dir)
+                else:
+                    result = executor.submit(run_flexible_scipio_worker, run_id, assembly_file, evidence_file, work_dir)
+                results.append(result)
+    
+            genesraw_files = []
+            for result in as_completed(results):
+                res = result.result()
+                if res.startswith('Error:'):
+                    remove_run_processes(run_id)
+                    elapsed = timer.stop(start_time)
+                    mark_step_error(run_id, 'scipio', res[7:], payload=step_payload)
+                    return jsonify({'status': 'error', 'message': res[7:], 'timer': elapsed}), 500
+                if not os.path.exists(res):
+                    remove_run_processes(run_id)
+                    elapsed = timer.stop(start_time)
+                    mark_step_error(run_id, 'scipio', f'File not found: {res}', payload=step_payload)
+                    return jsonify({'status': 'error', 'message': f'File not found: {res}', 'timer': elapsed }), 500
+                genesraw_files.append(res)
             
-            if not flex:
-                result = executor.submit(run_scipio_worker, run_id, assembly_file, evidence_file, work_dir)
-            else:
-                result = executor.submit(run_flexible_scipio_worker, run_id, assembly_file, evidence_file, work_dir)
-            results.append(result)
- 
-        genesraw_files = []
-        for result in as_completed(results):
-            res = result.result()
-            if res.startswith('Error:'):
-                remove_run_processes(run_id)
-                return jsonify({'status': 'error', 'message': res[7:], 'timer': timer.stop(start_time)}), 500
-            if not os.path.exists(res):
-                remove_run_processes(run_id)
-                return jsonify({'status': 'error', 'message': f'File not found: {res}', 'timer': timer.stop(start_time) }), 500
-            genesraw_files.append(res)
-        
-        genesraw = f"runs/{run_id}/annotation/genes.raw.gb" 
-        concatenate_files(genesraw_files, genesraw)
-        # clean(split_assembly_files, run_id)
-        remove_run_processes(run_id)
-        return jsonify({'status': 'success', 'data': genesraw, 'timer': timer.stop(start_time)}), 200
+            concatenate_files(genesraw_files, genesraw)
+            # clean(split_assembly_files, run_id)
+            remove_run_processes(run_id)
+            elapsed = timer.stop(start_time)
+            mark_step_success(run_id, 'scipio', result=genesraw, timer_value=elapsed, payload=step_payload)
+            return jsonify({'status': 'success', 'data': genesraw, 'timer': elapsed}), 200
+    finally:
+        release_lock(lock_fd, lock_file)
+
+def try_acquire_lock(lock_file):
+    try:
+        fd = os.open(lock_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.write(fd, f"pid={os.getpid()}\n".encode())
+        return fd
+    except FileExistsError:
+        return None
+
+def release_lock(fd, lock_file):
+    try:
+        if fd is not None:
+            os.close(fd)
+    finally:
+        if os.path.exists(lock_file):
+            try:
+                os.remove(lock_file)
+            except OSError:
+                pass
+
+def wait_for_existing_scipio_result(genesraw, lock_file, timeout_seconds=3600, poll_seconds=5):
+    waited = 0
+    while waited < timeout_seconds:
+        if os.path.exists(genesraw) and os.path.getsize(genesraw) > 0:
+            return True
+        if not os.path.exists(lock_file):
+            return os.path.exists(genesraw) and os.path.getsize(genesraw) > 0
+        time.sleep(poll_seconds)
+        waited += poll_seconds
+    return os.path.exists(genesraw) and os.path.getsize(genesraw) > 0
         
 def run_scipio_worker(run_id, assembly_file, evidence_file, work_dir):
     max_blat_attempts = 3
@@ -149,22 +210,6 @@ def extract_gff_from_yaml(run_id, scipioyaml, scipioscipiogff, scipiogff):
     finally:
         if process_id:
             remove_process(process_id)    
-
-def gff_to_genbank(run_id, assembly_file, genesrawgb, scipiogff):
-    command = f"perl {conda_bin_path}/gff2gbSmallDNA.pl {scipiogff} {assembly_file} 1000 {genesrawgb}"
-    print(f"\n({os.path.basename(os.path.dirname(genesrawgb))}) {command}")
-    process_id = None
-    try:
-        command_args = shlex.split(command)
-        process = subprocess.Popen(command_args, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
-        process_id = process.pid
-        add_process(run_id, process_id, command, 1)
-        stdout, stderr = process.communicate()        
-    except subprocess.CalledProcessError as e:
-        return f"Error: gff2gbSmallDNA failed for command {command}. stderr: {e.stderr.decode() if e.stderr else ''}"
-    finally:
-        if process_id:
-            remove_process(process_id)        
     
 def gff_to_genbank(run_id, assembly_file, genesrawgb, scipiogff):
     command = f"perl {conda_bin_path}/gff2gbSmallDNA.pl {scipiogff} {assembly_file} 1000 {genesrawgb}"

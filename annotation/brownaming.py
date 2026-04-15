@@ -4,6 +4,7 @@ from flask_app.utils import load_config
 from flask import Blueprint, request, jsonify
 from flask_app.commands import run_command
 import glob
+from flask_app.step_status import mark_step_error, mark_step_running, mark_step_success
 
 run_brownaming_bp = Blueprint('run_brownaming_bp', __name__)
 config = load_config()
@@ -18,9 +19,11 @@ def run_brownaming():
     cpus = request.json.get('cpus')
     annotation_file = request.json.get('annotation_file')
     resume = request.json.get('resume', False)
+    mark_step_running(run_id, 'brownaming')
 
     local_db = config.get('BROWNAMING_DB')
     if not local_db:
+        mark_step_error(run_id, 'brownaming', 'BROWNAMING_DB path not configured in config file')
         return jsonify({
             'status': 'error',
             'message': 'BROWNAMING_DB path not configured in config file'
@@ -56,13 +59,15 @@ def run_brownaming():
     stdout, stderr, returncode = run_command(command, run_id, cpus=cpus, env=env)
     
     if returncode != 0 or stdout.strip().split('\n')[-1].startswith('[ERROR]') or stderr.strip().split('\n')[-1].startswith('[ERROR]'):
+        elapsed = timer.stop(start_time)
+        mark_step_error(run_id, 'brownaming', 'Brownaming command failed')
         return jsonify({
             'status': 'error',
             'message': 'Brownaming command failed',
             'command': command,
             'stderr': stderr,
             'stdout': stdout,
-            'timer': timer.stop(start_time)
+            'timer': elapsed
         }), 500
         
     
@@ -87,6 +92,16 @@ def run_brownaming():
         elif file.endswith('.log'):
             output_files['log'] = f'brownaming/{file}'
     
+    elapsed = timer.stop(start_time)
+    result_payload = {
+        'run_id': run_id,
+        'output_files': output_files,
+        'brownaming_dir': f'{brownotate_path}/runs/{run_id}/brownaming',
+        'command': command,
+        'stdout': stdout,
+        'stderr': stderr,
+    }
+    mark_step_success(run_id, 'brownaming', result=result_payload, timer_value=elapsed)
     return jsonify({
         'status': 'success',
         'run_id': run_id,
@@ -95,5 +110,5 @@ def run_brownaming():
         'command': command,
         'stdout': stdout,
         'stderr': stderr,
-        'timer': timer.stop(start_time)
+        'timer': elapsed
     }), 200

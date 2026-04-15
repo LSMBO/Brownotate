@@ -10,6 +10,7 @@ from flask_app.utils import load_config
 from flask import Blueprint, request, jsonify
 from flask_app.commands import run_docker_command
 from flask_app.database import update_one, find_one
+from flask_app.step_status import mark_step_error, mark_step_running, mark_step_success
 from database_search.sequencing.genome_estimation import estimate_genome_size, format_genome_size_for_canu
 from bson.int64 import Int64
 
@@ -105,10 +106,12 @@ def run_canu_background(wd, cpus, scientific_name, sequencing_file_list, genome_
     command_str = ''
     
     try:
+        # Keep CANU-specific status for backward compatibility and write unified step status for polling.
         log_detailed(f"[Background] Setting status to 'running' for run {wd}")
         if not update_canu_status_robust(wd, {"resumeData.canu_status": "running"}):
             log_detailed(f"[Background] CRITICAL: Failed to set initial status for run {wd}")
             return
+        mark_step_running(wd, 'canu')
         
         output_folder = f"runs/{wd}/genome"
         os.makedirs(output_folder, exist_ok=True)
@@ -180,6 +183,7 @@ def run_canu_background(wd, cpus, scientific_name, sequencing_file_list, genome_
                 "resumeData.stdout_file": stdout_log_file,
                 "resumeData.stderr_file": stderr_log_file
             })
+            mark_step_error(wd, 'canu', f'CANU failed with return code {returncode}')
             log_detailed(f"[Background] CANU failed for run {wd}")
             return
         
@@ -200,6 +204,7 @@ def run_canu_background(wd, cpus, scientific_name, sequencing_file_list, genome_
                     "resumeData.stdout_file": stdout_log_file,
                     "resumeData.stderr_file": stderr_log_file
                 })
+                mark_step_error(wd, 'canu', 'Assembly file not found')
                 log_detailed(f"[Background] Assembly file not found for run {wd}")
                 return
         
@@ -226,6 +231,7 @@ def run_canu_background(wd, cpus, scientific_name, sequencing_file_list, genome_
             "resumeData.stderr_file": stderr_log_file,
             "timers.Running CANU assembly ": elapsed
         })
+        mark_step_success(wd, 'canu', result=assembly_file_name, timer_value=elapsed)
         
         if update_success:
             log_detailed(f"[Background] ✓ Database updated AND VERIFIED for run {wd}")
@@ -244,6 +250,7 @@ def run_canu_background(wd, cpus, scientific_name, sequencing_file_list, genome_
             "resumeData.canu_status": "error",
             "resumeData.canu_error": error_msg
         })
+        mark_step_error(wd, 'canu', error_msg)
 
 @run_canu_bp.route('/run_canu', methods=['POST'])
 def run_canu():

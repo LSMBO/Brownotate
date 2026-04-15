@@ -5,6 +5,7 @@ from timer import timer
 from flask_app.utils import load_config
 from flask import Blueprint, request, jsonify
 from flask_app.commands import run_command
+from flask_app.step_status import mark_step_error, mark_step_running, mark_step_success
 
 run_megahit_bp = Blueprint('run_megahit_bp', __name__)
 config = load_config()
@@ -19,6 +20,7 @@ def run_megahit():
     cpus = parameters['cpus']
     scientific_name = parameters['species']['scientificName']
     sequencing_file_list = request.json.get('sequencing_file_list')
+    mark_step_running(wd, 'megahit')
 
     if not os.path.exists(f"runs/{wd}/genome"):
         os.makedirs(f"runs/{wd}/genome")
@@ -84,22 +86,26 @@ def run_megahit():
 
     stdout, stderr, returncode = run_command(command, wd, cpus=cpus)
     if returncode == -9:
+        elapsed = timer.stop(start_time)
+        mark_step_error(wd, 'megahit', 'Megahit was killed (exit code -9)')
         return jsonify({
             "status": "error",
             "message": f"Megahit was killed (exit code -9). This typically happens due to out-of-memory (OOM) issues. Try running on a machine with more RAM, or reducing the size/complexity of the input data.",
             "command": command,
             "stderr": stderr,
             "stdout": stdout,
-            "timer": timer.stop(start_time)
+            "timer": elapsed
         }), 500  
     elif returncode != 0:          
+        elapsed = timer.stop(start_time)
+        mark_step_error(wd, 'megahit', 'Megahit command failed')
         return jsonify({
             'status': 'error',
             'message': f'Megahit command failed',
             'command': command,
             'stderr': stderr,
             'stdout': stdout,
-            'timer': timer.stop(start_time)
+            'timer': elapsed
         }), 500        
     
     if os.path.exists(f"runs/{wd}/genome/megahit_working_dir/final.contigs.fa"):
@@ -111,12 +117,14 @@ def run_megahit():
         if os.path.exists(file) and str(wd) in file:
             os.remove(file)
 
+    elapsed = timer.stop(start_time)
+    mark_step_success(wd, 'megahit', result=assembly_file_name, timer_value=elapsed)
     return jsonify({
         'status': 'success', 
         'data': assembly_file_name, 
         'command': command,
         'stdout': stdout,
         'stderr': stderr,
-        'timer': timer.stop(start_time)
+        'timer': elapsed
     }), 200
     

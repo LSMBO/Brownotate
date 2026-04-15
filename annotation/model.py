@@ -6,8 +6,8 @@ import re
 from timer import timer
 from flask_app.utils import load_config
 from flask import Blueprint, request, jsonify
-import shutil
 from flask_app.commands import run_command
+from flask_app.step_status import mark_step_error, mark_step_running, mark_step_success
 
 run_model_bp = Blueprint('run_model_bp', __name__)
 config = load_config()
@@ -23,21 +23,25 @@ def run_model():
     parameters = request.json.get('parameters')
     genesraw = request.json.get('genesraw')
     wd = parameters['id']
+    mark_step_running(wd, 'model')
 
+    # Prepare Augustus species model and train on Scipio-derived genes.
     remove_zero_bp_genes(genesraw)
     command = f"\nperl {conda_bin_path}/new_species.pl --species={wd}"
     if os.path.exists(f"{augustus_config_path}/species/{wd}"):
         shutil.rmtree(f"{augustus_config_path}/species/{wd}")
     
     stdout, stderr, returncode = run_command(command, wd, env=env)
-    if returncode != 0:          
+    if returncode != 0:
+        elapsed = timer.stop(start_time)
+        mark_step_error(wd, 'model', 'new_species.pl command failed')
         return jsonify({
             'status': 'error',
             'message': f'new_species.pl command failed',
             'command': command,
             'stderr': stderr,
             'stdout': stdout,
-            'timer': timer.stop(start_time)
+            'timer': elapsed
         }), 500    
 
     cfg_parameter_file = f"{augustus_config_path}/species/{wd}/{wd}_parameters.cfg"
@@ -47,14 +51,16 @@ def run_model():
     command = f"etraining --species={wd} {genesraw}"
     
     stdout, stderr, returncode = run_command(command, wd, stdout_path=bonafide_stdout_path, stderr_path=bonafide_stderr_path, env=env)
-    if returncode != 0:          
+    if returncode != 0:
+        elapsed = timer.stop(start_time)
+        mark_step_error(wd, 'model', 'etraining command failed')
         return jsonify({
             'status': 'error',
             'message': f'etraining command failed',
             'command': command,
             'stderr': stderr,
             'stdout': stdout,
-            'timer': timer.stop(start_time)
+            'timer': elapsed
         }), 500    
 
     # By default the gene model considers that genes end with a stop codon (stopCodonExcludedFromCDS=false). 
@@ -71,19 +77,19 @@ def run_model():
         
         command = f"etraining --species={wd} {genesraw}" # Re-run etraining after changing the parameter
         stdout, stderr, returncode = run_command(command, wd, stdout_path=bonafide_stdout_path, stderr_path=bonafide_stderr_path, env=env)
-        if returncode != 0:          
+        if returncode != 0:
+            elapsed = timer.stop(start_time)
+            mark_step_error(wd, 'model', 'etraining command failed')
             return jsonify({
                 'status': 'error',
                 'message': f'etraining command failed',
                 'command': command,
                 'stderr': stderr,
                 'stdout': stdout,
-                'timer': timer.stop(start_time)
+                'timer': elapsed
             }), 500
     
     badlst_path = f"runs/{wd}/annotation/bad.lst"
-    temp_path2 = f"runs/{wd}/annotation/bad_temp2.txt"
-    
     try:
         if not os.path.exists(bonafide_stderr_path):
             print(f"ERROR: {bonafide_stderr_path} does not exist")
@@ -107,11 +113,13 @@ def run_model():
                     outfile.write(f"{seq}\n")
             
     except Exception as e:
+        elapsed = timer.stop(start_time)
+        mark_step_error(wd, 'model', f'Error during problematic sequence processing: {str(e)}')
         return jsonify({
             'status': 'error',
             'message': f'Error during problematic sequence processing',
             'stderr': str(e),
-            'timer': timer.stop(start_time)
+            'timer': elapsed
         }), 500
 
     genes_gb_path = f"runs/{wd}/annotation/genes.gb"
@@ -120,13 +128,15 @@ def run_model():
     command = f"perl {conda_bin_path}/filterGenes.pl {badlst_path} {genesraw}" # Filter out bad genes from genes.raw.gb
     stdout, stderr, returncode = run_command(command, wd, stdout_path=genes_gb_path, stderr_path=genes_gb_path_stderr, env=env)
     if returncode != 0:
+        elapsed = timer.stop(start_time)
+        mark_step_error(wd, 'model', 'filterGenes command failed')
         return jsonify({
             'status': 'error',
             'message': f'filterGenes command failed',
             'command': command,
             'stderr': stderr,
             'stdout': stdout,
-            'timer': timer.stop(start_time)
+            'timer': elapsed
         }), 500
 
     command = f"grep -c LOCUS runs/{wd}/annotation/genes.raw.gb"
@@ -137,10 +147,12 @@ def run_model():
     num_genes = int(subprocess.run(command, stdout=subprocess.PIPE, shell=True).stdout.decode().strip())
     print(f"Number of genes genes.gb: {num_genes}")
           
+    elapsed = timer.stop(start_time)
+    mark_step_success(wd, 'model', result=num_genes, timer_value=elapsed)
     return jsonify({
         'status': 'success', 
         'data': num_genes, 
-        'timer': timer.stop(start_time)
+        'timer': elapsed
     }), 200
     
 def change_cfg_stop(cfg_parameter_file):

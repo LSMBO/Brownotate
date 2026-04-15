@@ -5,6 +5,7 @@ from timer import timer
 from flask_app.utils import load_config
 from flask import Blueprint, request, jsonify
 from flask_app.commands import run_command
+from flask_app.step_status import mark_step_error, mark_step_running, mark_step_success
 
 run_fastp_bp = Blueprint('run_fastp_bp', __name__)
 config = load_config()
@@ -38,6 +39,14 @@ def get_single_output_name(file_name, wd):
     return f'"{file_name}"'
 
 
+def _safe_remove(path):
+    if not path:
+        return
+    clean_path = path[1:-1] if isinstance(path, str) and len(path) > 1 and path[0] == '"' and path[-1] == '"' else path
+    if os.path.exists(clean_path):
+        os.remove(clean_path)
+
+
 @run_fastp_bp.route('/run_fastp', methods=['POST'])
 def run_fastp():
     start_time = timer.start()
@@ -45,59 +54,72 @@ def run_fastp():
     wd = parameters['id']
     cpus = parameters['cpus']
     sequencing_file_list = request.json.get('sequencing_file_list')
+    mark_step_running(wd, 'fastp')
 
-    output_files = []
-    if not os.path.exists(f"runs/{wd}/seq"):
-        os.makedirs(f"runs/{wd}/seq")
-    
-    for sequencing_file in sequencing_file_list:
-        accession = sequencing_file['accession']
-        file_name = sequencing_file['file_name']
-        platform = sequencing_file['platform']
-        layout = 'PAIRED' if isinstance(file_name, list) and len(file_name) == 2 else 'SINGLE'
+    try:
+        output_files = []
+        if not os.path.exists(f"runs/{wd}/seq"):
+            os.makedirs(f"runs/{wd}/seq")
         
-        # Skip fastp for PacBio and Nanopore as they need different QC tools
-        if platform in ["PACBIO_SMRT", "OXFORD_NANOPORE"]:
-            # Just pass through without processing
-            output_files.append(sequencing_file)
-            continue
+        for sequencing_file in sequencing_file_list:
+            accession = sequencing_file['accession']
+            file_name = sequencing_file['file_name']
+            platform = sequencing_file['platform']
+            layout = 'PAIRED' if isinstance(file_name, list) and len(file_name) == 2 else 'SINGLE'
+            
+            # Skip fastp for PacBio and Nanopore as they need different QC tools
+            if platform in ["PACBIO_SMRT", "OXFORD_NANOPORE"]:
+                output_files.append(sequencing_file)
+                continue
 
-        if (layout == "PAIRED"):
-            output_name = get_paired_output_name(file_name, wd)
-            command = get_paired_command(file_name, output_name, cpus, wd)
-        else:
-            output_name = get_single_output_name(file_name, wd)
-            command = get_single_command(file_name, output_name, cpus, wd)
+            if (layout == "PAIRED"):
+                output_name = get_paired_output_name(file_name, wd)
+                command = get_paired_command(file_name, output_name, cpus, wd)
+            else:
+                output_name = get_single_output_name(file_name, wd)
+                command = get_single_command(file_name, output_name, cpus, wd)
 
-        stdout, stderr, returncode = run_command(command, wd, cpus)
-        if returncode != 0:
-            return jsonify({
-                'status': 'error',
-                'message': f'fastp failed for {accession}',
-                'command': command,
-                'stderr': stderr,
-                'stdout': stdout,
-                'timer': timer.stop(start_time)
-            }), 500
+            stdout, stderr, returncode = run_command(command, wd, cpus)
+            if returncode != 0:
+                elapsed = timer.stop(start_time)
+                mark_step_error(wd, 'fastp', f'fastp failed for {accession}')
+                return jsonify({
+                    'status': 'error',
+                    'message': f'fastp failed for {accession}',
+                    'command': command,
+                    'stderr': stderr,
+                    'stdout': stdout,
+                    'timer': elapsed
+                }), 500
 
-        # Clean up
-        if layout == "PAIRED":
-            if str(wd) in file_name[0]:
-                os.remove(file_name[0])
-                os.remove(file_name[1])
-        else:
-            if str(wd) in file_name:
-                os.remove(file_name)
+            # Clean up input files when they belong to this run.
+            if layout == "PAIRED":
+                if str(wd) in str(file_name[0]):
+                    _safe_remove(file_name[0])
+                    _safe_remove(file_name[1])
+            else:
+                if str(wd) in str(file_name):
+                    _safe_remove(file_name)
 
-        updated_sequencing_file = copy.deepcopy(sequencing_file)
-        updated_sequencing_file['fastp_file_name'] = output_name
+            updated_sequencing_file = copy.deepcopy(sequencing_file)
+            updated_sequencing_file['fastp_file_name'] = output_name
+            output_files.append(updated_sequencing_file)
 
-        output_files.append(updated_sequencing_file)
-    print(f"retoure data: {output_files} et timer: {timer.stop(start_time)}")
-    return jsonify({
-        'status': 'success', 
-        'data': output_files, 
-        'timer': timer.stop(start_time)
-    }), 200
+        elapsed = timer.stop(start_time)
+        mark_step_success(wd, 'fastp', result=output_files, timer_value=elapsed)
+        print(f"retoure data: {output_files} et timer: {elapsed}")
+        return jsonify({
+            'status': 'success', 
+            'data': output_files, 
+            'timer': elapsed
+        }), 200
+    except Exception as exc:
+        elapsed = timer.stop(start_time)
+        mark_step_error(wd, 'fastp', f'Unhandled fastp error: {str(exc)}')
+        return jsonify({
+            'status': 'error',
+            'message': f'Unhandled fastp error: {str(exc)}',
+            'timer': elapsed
+        }), 500
 
 

@@ -6,6 +6,7 @@ from flask_app.utils import load_config
 from flask import Blueprint, request, jsonify
 from flask_app.commands import run_command
 import shutil
+from flask_app.step_status import mark_step_error, mark_step_running, mark_step_success
 
 
 run_optimize_model_bp = Blueprint('run_optimize_model_bp', __name__)
@@ -23,20 +24,23 @@ def run_optimize_model():
     num_genes = request.json.get('num_genes')
     wd = parameters['id']
     cpus = parameters['cpus']
+    mark_step_running(wd, 'optimize_model')
     
     genes_file = f"runs/{wd}/annotation/genes.gb"
     
     if num_genes > 300:
         command = f"perl {conda_bin_path}/randomSplit.pl {genes_file} 300"
         stdout, stderr, returncode = run_command(command, wd)
-        if returncode != 0:          
+        if returncode != 0:
+            elapsed = timer.stop(start_time)
+            mark_step_error(wd, 'optimize_model', 'randomSplit.pl command failed')
             return jsonify({
                 'status': 'error',
                 'message': f'randomSplit.pl command failed',
                 'command': command,
                 'stderr': stderr,
                 'stdout': stdout,
-                'timer': timer.stop(start_time)
+                'timer': elapsed
             }), 500    
 
         train_genes_file = "genes.gb.train"
@@ -48,14 +52,16 @@ def run_optimize_model():
     os.chdir(f"runs/{wd}/annotation")
     stdout, stderr, returncode = run_command(command, wd, cpus=cpus, stdout_path="optimize.out", env=env)
     os.chdir(f"../../..")
-    if returncode != 0:          
+    if returncode != 0:
+        elapsed = timer.stop(start_time)
+        mark_step_error(wd, 'optimize_model', 'optimize_augustus.pl command failed')
         return jsonify({
             'status': 'error',
             'message': f'optimize_augustus.pl command failed',
             'command': command,
             'stderr': stderr,
             'stdout': stdout,
-            'timer': timer.stop(start_time)
+            'timer': elapsed
         }), 500    
     
     etrain_path = f"runs/{wd}/annotation/etrain.out"
@@ -64,14 +70,16 @@ def run_optimize_model():
     etrain_err = f"runs/{wd}/annotation/etrain.err"
     command = f"etraining --species={wd} --stopCodonExcludedFromCDS=true {genes_file}"
     stdout, stderr, returncode = run_command(command, wd, stdout_path=etrain_out, stderr_path=etrain_err)
-    if returncode != 0:          
+    if returncode != 0:
+        elapsed = timer.stop(start_time)
+        mark_step_error(wd, 'optimize_model', 'etraining command failed')
         return jsonify({
             'status': 'error',
             'message': f'etraining command failed',
             'command': command,
             'stderr': stderr,
             'stdout': stdout,
-            'timer': timer.stop(start_time)
+            'timer': elapsed
         }), 500    
     
     tag, taa, tga = get_stop_proba(etrain_path)
@@ -80,9 +88,11 @@ def run_optimize_model():
     change_cfg_stop_prob(cfg_parameter_file, tag, taa, tga)
     # clean(wd)
     
+    elapsed = timer.stop(start_time)
+    mark_step_success(wd, 'optimize_model', result=True, timer_value=elapsed)
     return jsonify({
         'status': 'success', 
-        'timer': timer.stop(start_time)
+        'timer': elapsed
     }), 200
 
 def get_stop_proba(etrainout_file):
