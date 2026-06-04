@@ -10,13 +10,18 @@ config = load_config()
 def download_server():
     try:
         data = request.json
-        path = data.get('file')
-        
+        requested_path = data.get('file')
+        if not requested_path:
+            return jsonify({"error": "Missing file path"}), 400
+
+        if os.path.isabs(requested_path):
+            path = requested_path
+        else:
+            path = os.path.join(config['BROWNOTATE_PATH'], requested_path)
+
         if not os.path.exists(path):
             return jsonify({"error": "File not found"}), 404
-        
-        path = os.path.join(config['BROWNOTATE_PATH'], path)
-        
+
         if os.path.isdir(path):
             return download_zip(path)
         

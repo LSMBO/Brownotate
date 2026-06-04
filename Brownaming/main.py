@@ -110,9 +110,13 @@ else:
     logger.info(f"Starting the Brownaming process with run ID: {RUN_ID}")
 
 working_directory = utils.working_dir(RUN_ID)
-output_fasta_file = working_directory + '/' + os.path.basename(query_fasta).replace('.fasta', '_brownamed.fasta').replace('.faa', '_brownamed.fasta')
-output_stats_file = working_directory + '/' + os.path.basename(query_fasta).replace('.fasta', '_brownaming_stats.png').replace('.faa', '_brownaming_stats.png')
-output_excel_file = working_directory + '/' + os.path.basename(query_fasta).replace('.fasta', '_diamond_results.xlsx').replace('.faa', '_diamond_results.xlsx')
+query_basename = os.path.basename(query_fasta)
+query_stem, _ = os.path.splitext(query_basename)
+output_fasta_file = os.path.join(working_directory, f"{query_stem}_brownamed.fasta")
+output_stats_file = os.path.join(working_directory, f"{query_stem}_brownaming_stats.png")
+output_excel_file = os.path.join(working_directory, f"{query_stem}_diamond_results.xlsx")
+output_tsv_main_file = os.path.join(working_directory, f"{query_stem}_diamond_results.tsv")
+output_tsv_top3_file = os.path.join(working_directory, f"{query_stem}_diamond_results_top3.tsv")
 state_file = os.path.join(working_directory, f"state.pkl")
 # save_interval = 15 * 60
 save_interval = 5
@@ -275,8 +279,17 @@ for qid in query_ids:
         output_data = excel.add_no_hit(output_data, qid)
         output_top3 = excel.add_no_hit(output_top3, qid)
 
-excel.write_excel(output_data, output_excel_file)
-excel.add_sheet(output_top3, output_excel_file, "Top3 hits")
+result_rows = len(next(iter(output_data.values()))) if output_data else 0
+if result_rows > excel.MAX_EXCEL_DATA_ROWS:
+    logger.warning(
+        f"Result table has {result_rows} rows and exceeds Excel limit "
+        f"({excel.MAX_EXCEL_DATA_ROWS}). Exporting TSV files instead."
+    )
+    excel.write_tsv(output_data, output_tsv_main_file)
+    excel.write_tsv(output_top3, output_tsv_top3_file)
+else:
+    excel.write_excel(output_data, output_excel_file)
+    excel.add_sheet(output_top3, output_excel_file, "Top3 hits")
 
 output_records = []
 for record in SeqIO.parse(query_fasta, "fasta"):
@@ -302,7 +315,12 @@ if final_output_dir:
     destination_dir = os.path.abspath(final_output_dir)
     if os.path.abspath(internal_run_dir) != destination_dir:
         if os.path.exists(destination_dir):
-            error_exit(f"Cannot move completed run to '{destination_dir}' because destination already exists.", RUN_ID)
+            # The API wrapper may pre-create an empty destination directory.
+            # Allow that case and replace it with the finished run directory.
+            if os.path.isdir(destination_dir) and not os.listdir(destination_dir):
+                os.rmdir(destination_dir)
+            else:
+                error_exit(f"Cannot move completed run to '{destination_dir}' because destination already exists.", RUN_ID)
         destination_parent = os.path.dirname(destination_dir)
         if destination_parent:
             os.makedirs(destination_parent, exist_ok=True)

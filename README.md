@@ -2,7 +2,9 @@
 
 Brownotate is an application designed for generating a protein sequence database for a given species. It can be run as a command-line tool or as a web application using Flask.
 
-Before setting up your own Brownotate server, you can try a ***demo version*** without installing anything. Simply contact me at browna@unistra.fr, and I will create an account for you on the server hosted at my institute.
+You can try the hosted demo at https://lsmbo-brownotate.u-strasbg.fr.
+Guest access allows database searches only; annotation jobs are disabled for guests because annotations use our institute resources.
+To try annotation, contact fbertile@unistra.fr to request an account. Otherwise, install your own instance using the instructions below.
 
 ## Prerequisites
 
@@ -218,11 +220,10 @@ Edit the `config.json` file located in the root directory of the project:
 
 1. **Web Application:**
 
-To set up the Brownotate web application, you need to configure both the client from (https://github.com/LSMBO/brownotate-app) and the backend (https://github.com/LSMBO/Brownotate).
-Brownotate
-The web client for Brownotate is hosted in a separate repository. Follow the instructions in the Brownotate web client repository (https://github.com/LSMBO/brownotate-app) to install and configure the client. The client is responsible for interacting with the user and sending requests to the Brownotate backend.
+The Brownotate web client is hosted in a separate repository: https://github.com/LSMBO/brownotate-app.
+Follow that repository's instructions to install and configure the client.
 
-Once the client is set up, you need to launch the Brownotate backend, which is a Flask-based server that handles requests from the client and executes commands. This backend is served using Gunicorn, a Python WSGI HTTP server optimized for handling concurrent connections. It has already been installed in the br Conda environment.
+Once the client is set up, start the Brownotate backend. The backend is a Flask server served with Gunicorn and must be launched from the `br` Conda environment.
 
 Use the following command to start the Flask server:
 

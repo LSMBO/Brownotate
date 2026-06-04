@@ -100,19 +100,13 @@ env['PATH'] = os.path.join(config['BROWNOTATE_ENV_PATH'], 'bin') + os.pathsep + 
 
 # CANU Docker image
 CANU_DOCKER_IMAGE = 'quay.io/biocontainers/canu:2.2--ha47f30e_0'
+CANU_FIXED_THREADS = 16
 
 def run_canu_background(wd, cpus, scientific_name, sequencing_file_list, genome_size_str, platform):
     start_time = timer.start()
     command_str = ''
     
     try:
-        # Keep CANU-specific status for backward compatibility and write unified step status for polling.
-        log_detailed(f"[Background] Setting status to 'running' for run {wd}")
-        if not update_canu_status_robust(wd, {"resumeData.canu_status": "running"}):
-            log_detailed(f"[Background] CRITICAL: Failed to set initial status for run {wd}")
-            return
-        mark_step_running(wd, 'canu')
-        
         output_folder = f"runs/{wd}/genome"
         os.makedirs(output_folder, exist_ok=True)
         
@@ -148,10 +142,18 @@ def run_canu_background(wd, cpus, scientific_name, sequencing_file_list, genome_
             }})
             return
         
+        # Force a CANU thread count that is compatible with the hap step.
+        canu_threads = CANU_FIXED_THREADS
+        try:
+            requested_cpus = int(cpus)
+        except (TypeError, ValueError):
+            requested_cpus = 1
+        docker_cpus = max(canu_threads, requested_cpus)
+
         container_output_dir = f"/data/runs/{wd}/genome/canu_output"
         command = [
             'canu', '-p', prefix, '-d', container_output_dir,
-            f'genomeSize={genome_size_str}', f'maxThreads={cpus}',
+            f'genomeSize={genome_size_str}', f'maxThreads={canu_threads}',
             'stopOnLowCoverage=5', technology
         ]
         command.extend(seq_files_container)
@@ -163,11 +165,14 @@ def run_canu_background(wd, cpus, scientific_name, sequencing_file_list, genome_
         current_dir = os.getcwd()
         volumes = {current_dir: '/data'}
         
-        log_detailed(f"[Background] Starting CANU for run {wd}")
+        log_detailed(
+            f"[Background] Starting CANU for run {wd} "
+            f"(maxThreads={canu_threads}, docker_cpus={docker_cpus})"
+        )
         
         stdout, stderr, returncode = run_docker_command(
             image=CANU_DOCKER_IMAGE, command=command_str, wd=wd,
-            cpus=cpus, volumes=volumes, working_dir='/data', timeout=2592000
+            cpus=docker_cpus, volumes=volumes, working_dir='/data', timeout=2592000
         )
         
         with open(stdout_log_file, 'w') as f:
@@ -284,6 +289,22 @@ def run_canu():
             'status': 'error',
             'message': 'Platform not specified in sequencing files'
         }), 400
+
+    # Reset stale CANU state synchronously before the orchestrator starts polling.
+    log_detailed(f"[Route] Setting status to 'running' for run {wd}")
+    update_success = update_canu_status_robust(wd, {
+        "resumeData.canu_status": "running",
+        "resumeData.canu_error": "",
+        "resumeData.stdout_file": "",
+        "resumeData.stderr_file": "",
+    })
+    if not update_success:
+        return jsonify({
+            'status': 'error',
+            'message': 'Unable to initialize CANU state before launch'
+        }), 500
+
+    mark_step_running(wd, 'canu')
     
     thread = threading.Thread(
         target=run_canu_background,

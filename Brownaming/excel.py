@@ -1,17 +1,29 @@
 import openpyxl
+import csv
 from openpyxl.styles import Font
 from openpyxl.styles import PatternFill
 from openpyxl.styles import Border, Side
 import utils
 
 taxid2name = utils.get_taxid_to_scientificname()
+MAX_EXCEL_DATA_ROWS = 1048575
 
-def write_excel(data, filename, header_bg="eeffed"):
+
+def _validate_column_lengths(data):
     lengths = [len(v) for v in data.values()]
     if len(set(lengths)) != 1:
         length_check = {k: len(v) for k, v in data.items()}
         print(f"Column lengths: {length_check}")
         raise ValueError("All columns must have the same number of rows.")
+
+def write_excel(data, filename, header_bg="eeffed"):
+    _validate_column_lengths(data)
+
+    row_count = len(next(iter(data.values()))) if data else 0
+    if row_count > MAX_EXCEL_DATA_ROWS:
+        raise ValueError(
+            f"Excel export limit exceeded: {row_count} data rows (max {MAX_EXCEL_DATA_ROWS})."
+        )
     
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -35,11 +47,13 @@ def write_excel(data, filename, header_bg="eeffed"):
     wb.save(filename)
 
 def add_sheet(data, filename, sheet_name, header_bg="eeffed"):
-    lengths = [len(v) for v in data.values()]
-    if len(set(lengths)) != 1:
-        length_check = {k: len(v) for k, v in data.items()}
-        print(f"Column lengths: {length_check}")
-        raise ValueError("All columns must have the same number of rows.")
+    _validate_column_lengths(data)
+
+    row_count = len(next(iter(data.values()))) if data else 0
+    if row_count > MAX_EXCEL_DATA_ROWS:
+        raise ValueError(
+            f"Excel export limit exceeded for sheet '{sheet_name}': {row_count} data rows (max {MAX_EXCEL_DATA_ROWS})."
+        )
     
     try:
         wb = openpyxl.load_workbook(filename)
@@ -74,6 +88,18 @@ def add_sheet(data, filename, sheet_name, header_bg="eeffed"):
         ws.column_dimensions[column_letter].width = min(50, max_length + 2)
     
     wb.save(filename)
+
+
+def write_tsv(data, filename):
+    _validate_column_lengths(data)
+
+    headers = list(data.keys())
+    row_count = len(next(iter(data.values()))) if data else 0
+    with open(filename, 'w', newline='', encoding='utf-8') as fh:
+        writer = csv.writer(fh, delimiter='\t')
+        writer.writerow(headers)
+        for row in range(row_count):
+            writer.writerow([data[header][row] for header in headers])
 
 
 def add_hit(output_data, hit):

@@ -44,6 +44,14 @@ def generate_combined_figure(stats, output_file='combined_results.png'):
     create_plot(stats_dict, ax_plot)
        
     plt.tight_layout()
+    _, ext = os.path.splitext(output_file)
+    supported_exts = {
+        '.png', '.pdf', '.svg', '.svgz', '.ps', '.eps', '.jpg', '.jpeg',
+        '.tif', '.tiff', '.webp', '.raw', '.rgba', '.pgf'
+    }
+    if not ext or ext.lower() not in supported_exts:
+        output_file = f"{os.path.splitext(output_file)[0]}.png" if ext else f"{output_file}.png"
+
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
     print(f"Combined figure saved as {output_file}")
     

@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify
 from flask_app.database import insert_one
 from timer import timer
 from .genome_estimation import estimate_genome_size
-from .sra_search import search_runs_for_species_simple, group_runs_by_taxid, get_run_by_accession
+from .sra_search import search_runs_for_species_simple, search_rna_runs_for_species, group_runs_by_taxid, get_run_by_accession
 from .batch_generation import generate_batches_from_runs_simple
 
 
@@ -222,6 +222,147 @@ def dbs_dnaseq():
         }), 500
 
 # ============================================================================
+# RNA SEQUENCING ROUTE
+# ============================================================================
+
+dbs_rnaseq_bp = Blueprint('dbs_rnaseq_bp', __name__)
+
+@dbs_rnaseq_bp.route('/dbs_rnaseq', methods=['POST'])
+def dbs_rnaseq():
+    """
+    Search for RNA sequencing runs (TRANSCRIPTOMIC / RNA-Seq strategy).
+
+    Returns the top 10 runs by total_bases, each as a batch of size 1.
+    Walks the taxonomic lineage until runs are found (respects inputTaxonomyOnly).
+
+    Request JSON:
+        user: User identifier
+        taxonomy: Taxonomy dictionary with scientificName, taxonId, lineage, synonyms
+        options: Dictionary with platforms, layout, inputTaxonomyOnly
+
+    Returns:
+        JSON with list of single-run batches
+    """
+    try:
+        start_time = timer.start()
+
+        user = request.json.get('user')
+        taxonomy = request.json.get('taxonomy')
+        options = request.json.get('options', {})
+        current_datetime = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
+
+        platforms = options.get('platforms', ['ILLUMINA'])
+        if not isinstance(platforms, list):
+            platforms = [platforms]
+
+        layout = options.get('layout', None)
+        if layout == 'any' or layout == '':
+            layout = None
+
+        input_taxonomy_only = options.get('inputTaxonomyOnly', False)
+
+        def _parse_optional_float(value):
+            if value is None:
+                return None
+            if isinstance(value, str) and value.strip() == '':
+                return None
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+
+        min_run_size_gb = _parse_optional_float(options.get('runSizeGbMin'))
+        max_run_size_gb = _parse_optional_float(options.get('runSizeGbMax'))
+
+        if min_run_size_gb is not None and max_run_size_gb is not None and min_run_size_gb > max_run_size_gb:
+            return jsonify({'error': 'RNA run size filter invalid: min is greater than max'}), 400
+
+        top_n = 10
+
+        if not user or not taxonomy:
+            return jsonify({'error': 'Missing user or taxonomy'}), 400
+
+        # Build taxonomic levels to search
+        taxonomic_levels = []
+        input_names = [taxonomy['scientificName']] + taxonomy.get('synonyms', [])
+        taxonomic_levels.append({'names': input_names, 'rank': 'input'})
+
+        if not input_taxonomy_only:
+            for taxo in taxonomy.get('lineage', []):
+                names = [taxo['scientificName']] + taxo.get('synonyms', [])
+                taxonomic_levels.append({'names': names, 'rank': taxo.get('rank', 'unknown')})
+
+        runs_blacklist = set()
+        all_runs = []
+
+        for level_idx, level in enumerate(taxonomic_levels):
+            print(f"[RNAseq] Searching level {level_idx + 1}/{len(taxonomic_levels)}: {level['names'][0]} ({level['rank']})")
+            level_runs = []
+            for species_name in level['names']:
+                runs = search_rna_runs_for_species(
+                    species_name,
+                    platforms,
+                    layout,
+                    runs_blacklist,
+                    min_run_size_gb=min_run_size_gb,
+                    max_run_size_gb=max_run_size_gb,
+                )
+                level_runs.extend(runs)
+
+            if level_runs:
+                all_runs.extend(level_runs)
+                print(f"[RNAseq] Found {len(level_runs)} runs, stopping search")
+                break
+
+        # Sort by total_bases descending and keep top_n
+        all_runs = sorted(all_runs, key=lambda r: r.get('total_bases', 0), reverse=True)[:top_n]
+
+        # Wrap each run as a minimal batch of size 1
+        batches = []
+        for run in all_runs:
+            batches.append({
+                'runs': [run],
+                'run_count': 1,
+                'total_bases': run.get('total_bases', 0),
+                'scientific_name': run.get('scientific_name', ''),
+                'taxid': str(run.get('taxid', '')),
+                'tissue': run.get('tissue') or None,
+            })
+
+        timer_str = timer.stop(start_time)
+
+        mongo_query = {
+            'user': user,
+            'timer': timer_str,
+            'date': current_datetime,
+            'scientific_name': taxonomy['scientificName'],
+            'taxid': taxonomy['taxonId'],
+            'options': options,
+            'data': batches
+        }
+        insert_one('rnaseq', mongo_query)
+
+        response_data = {
+            'user': user,
+            'timer': timer_str,
+            'date': current_datetime,
+            'scientific_name': taxonomy['scientificName'],
+            'taxid': taxonomy['taxonId'],
+            'options': options,
+            'data': batches
+        }
+
+        return jsonify({'status': 'success', 'data': response_data}), 200
+
+    except Exception as e:
+        import traceback
+        error_traceback = traceback.format_exc()
+        print(f"Error in dbs_rnaseq: {str(e)}")
+        print(f"Full traceback:\n{error_traceback}")
+        return jsonify({'error': str(e), 'traceback': error_traceback}), 500
+
+
+# ============================================================================
 # SINGLE ACCESSION SEARCH ROUTE
 # ============================================================================
 
@@ -247,3 +388,4 @@ def search_sequencing_run():
         return jsonify({'error': 'Run not found'}), 404
 
     return jsonify({'data': sequencing_data, 'status': 'success'}), 200
+

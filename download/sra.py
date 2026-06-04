@@ -40,7 +40,12 @@ def run_command(command, env, wd):
                     print(f"Command failed with return code {process.returncode}. Retrying... ({retry_count}/5)")
                 else:
                     print(f"Annotation canceled. Stopping retries.")
-                    return None, None
+                    return {
+                        'success': False,
+                        'stdout': stdout_data.decode('utf-8') if stdout_data else '',
+                        'stderr': stderr_data.decode('utf-8') if stderr_data else '',
+                        'returncode': process.returncode,
+                    }
         except Exception as e:
             retry_count += 1
             print(f"Error while executing command: {e}. Retrying... ({retry_count}/5)")
@@ -49,18 +54,37 @@ def run_command(command, env, wd):
 
     if not success:
         print("Failed to execute command after 5 attempts.")
-        return None, None
+        return {
+            'success': False,
+            'stdout': stdout_data.decode('utf-8') if stdout_data else '',
+            'stderr': stderr_data.decode('utf-8') if stderr_data else '',
+            'returncode': process.returncode if 'process' in locals() and process else 1,
+        }
     
     remove_process(process_id)
-    return stdout_data.decode('utf-8'), stderr_data.decode('utf-8')
+    return {
+        'success': True,
+        'stdout': stdout_data.decode('utf-8') if stdout_data else '',
+        'stderr': stderr_data.decode('utf-8') if stderr_data else '',
+        'returncode': 0,
+    }
 
 
 @download_sra_bp.route('/download_sra', methods=['POST'])
 def download_sra():
     start_time = timer.start()
-    parameters = request.json.get('parameters')
-    wd = parameters['id']
-    sequencing_run_list = parameters['startSection']['sequencingRunList']
+    parameters = request.json.get('parameters') or {}
+    wd = parameters.get('id') or request.json.get('run_id')
+    if wd is None:
+        return jsonify({'status': 'error', 'message': 'Missing run id', 'timer': timer.stop(start_time)}), 400
+
+    start_section = parameters.get('startSection', {}) or {}
+    is_rna = bool(start_section.get('rnaSequencing'))
+    sequencing_run_list = start_section.get('rnaSequencingRunList' if is_rna else 'sequencingRunList', [])
+    if not sequencing_run_list:
+        return jsonify({'status': 'error', 'message': 'No sequencing runs provided', 'timer': timer.stop(start_time)}), 400
+
+    wd = int(wd)
     commands = []
     fastq_files = []
 
@@ -69,14 +93,28 @@ def download_sra():
     for run_data in sequencing_run_list:
         accession = run_data["accession"]
         platform = run_data["platform"]
-        layout = run_data["layout"]
+        layout = str(run_data.get("layout", "SINGLE")).upper()
+
+        # A previous interrupted prefetch can leave a stale lock file and make
+        # immediate retries fail with a generic prefetch error.
+        stale_lock_path = f"runs/{wd}/seq/{accession}.sra.lock"
+        if os.path.exists(stale_lock_path):
+            try:
+                os.remove(stale_lock_path)
+            except OSError:
+                pass
 
         prefetch_cmd = f"prefetch {accession} -o runs/{wd}/seq/{accession}.sra --max-size 1500G"
-        if not run_command(prefetch_cmd, env, wd):
+        prefetch_result = run_command(prefetch_cmd, env, wd)
+        if not prefetch_result.get('success'):
             print(f"Prefetch failed for {accession}")
+            prefetch_detail = (prefetch_result.get('stderr') or prefetch_result.get('stdout') or '').strip()
+            prefetch_tail = '\n'.join(prefetch_detail.splitlines()[-20:]) if prefetch_detail else ''
             return jsonify({
                 'status': 'error', 
-                'message': f'Prefetch failed for {accession}', 
+                'message': f'Prefetch failed for {accession}',
+                'detail': prefetch_tail,
+                'returncode': prefetch_result.get('returncode'),
                 "timer": timer.stop(start_time)
             }), 500
 
@@ -85,10 +123,15 @@ def download_sra():
                 fasterqdump_cmd = f"fasterq-dump runs/{wd}/seq/{accession}.sra --outdir runs/{wd}/seq --skip-technical --split-files --temp runs/{wd}/seq"
             else:
                 fasterqdump_cmd = f"fasterq-dump runs/{wd}/seq/{accession}.sra --outdir runs/{wd}/seq --skip-technical --temp runs/{wd}/seq"
-            if not run_command(fasterqdump_cmd, env, wd):
+            fasterqdump_result = run_command(fasterqdump_cmd, env, wd)
+            if not fasterqdump_result.get('success'):
+                fasterq_detail = (fasterqdump_result.get('stderr') or fasterqdump_result.get('stdout') or '').strip()
+                fasterq_tail = '\n'.join(fasterq_detail.splitlines()[-20:]) if fasterq_detail else ''
                 return jsonify({
                     'status': 'error', 
-                    'message': f'fasterq-dump failed for {accession}', 
+                    'message': f'fasterq-dump failed for {accession}',
+                    'detail': fasterq_tail,
+                    'returncode': fasterqdump_result.get('returncode'),
                     "timer": timer.stop(start_time)
                 }), 500
                 
@@ -98,7 +141,7 @@ def download_sra():
                 if not os.path.exists(fq2):
                     for file in os.listdir(f"runs/{wd}/seq"):
                         if file.startswith(accession) and file.endswith(".fastq") and file != f"{accession}_1.fastq":
-                            os.rename(f"seq/{file}", fq2)
+                            os.rename(f"runs/{wd}/seq/{file}", fq2)
                             break
                 fastq_files.append({
                     "accession": accession,

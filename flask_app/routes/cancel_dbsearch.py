@@ -23,7 +23,7 @@ def cancel_dbsearch():
         threshold_str = time_threshold.strftime("%d%m%Y-%H%M%S")
         
         # Collections to clean
-        collections = ['uniprot', 'ensembl', 'refseq', 'genbank', 'dnaseq']
+        collections = ['uniprot', 'ensembl', 'refseq', 'genbank', 'dnaseq', 'rnaseq']
         deleted_counts = {}
         
         for collection_name in collections:

@@ -11,7 +11,7 @@ from database_search.refseq import dbs_refseq_bp
 from database_search.genbank import dbs_genbank_bp
 from database_search.ensembl import dbs_ensembl_bp
 from database_search.phylogeny import dbs_phylogeny_bp
-from database_search.sequencing.routes import dbs_dnaseq_bp, search_sequencing_run_bp
+from database_search.sequencing.routes import dbs_dnaseq_bp, dbs_rnaseq_bp, search_sequencing_run_bp
 
 # Download
 from download.uniprot import download_uniprot_bp
@@ -37,9 +37,13 @@ from annotation.model import run_model_bp
 from annotation.optimize_model import run_optimize_model_bp
 from annotation.augustus import run_augustus_bp
 from stats.busco import run_busco_bp
+from rna.trinity import run_trinity_bp
+from rna.rnabloom import run_rnabloom_bp
+from rna.transdecoder import run_transdecoder_bp
 
 # Utility Routes
 from flask_app.routes.login import login_bp
+from flask_app.routes.create_account import create_account_bp
 from flask_app.routes.get_user_annotations import get_user_annotations_bp
 from flask_app.routes.check_species_exists import check_species_exists_bp
 from flask_app.routes.merge_fasta_files import merge_fasta_files_bp
@@ -53,6 +57,7 @@ from flask_app.routes.get_dbsearches import get_dbsearches_bp
 from flask_app.routes.delete_dbsearch import delete_dbsearch_bp
 from flask_app.routes.cancel_dbsearch import cancel_dbsearch_bp
 from flask_app.routes.get_run import get_run_bp
+from flask_app.routes.get_error_message import get_error_message_bp
 from flask_app.routes.get_image import get_image_bp
 from flask_app.routes.read_file import read_file_bp
 from flask_app.routes.server_path import server_path_bp
@@ -79,6 +84,7 @@ app.register_blueprint(dbs_refseq_bp)
 app.register_blueprint(dbs_genbank_bp)
 app.register_blueprint(dbs_ensembl_bp)
 app.register_blueprint(dbs_dnaseq_bp)
+app.register_blueprint(dbs_rnaseq_bp)
 app.register_blueprint(dbs_phylogeny_bp)
 app.register_blueprint(search_sequencing_run_bp)
 
@@ -106,9 +112,13 @@ app.register_blueprint(run_model_bp)
 app.register_blueprint(run_optimize_model_bp)
 app.register_blueprint(run_augustus_bp)
 app.register_blueprint(run_busco_bp)
+app.register_blueprint(run_trinity_bp)
+app.register_blueprint(run_rnabloom_bp)
+app.register_blueprint(run_transdecoder_bp)
 
 # Utility Routes
 app.register_blueprint(login_bp)
+app.register_blueprint(create_account_bp)
 app.register_blueprint(get_user_annotations_bp)
 app.register_blueprint(check_species_exists_bp)
 app.register_blueprint(merge_fasta_files_bp)
@@ -123,6 +133,7 @@ app.register_blueprint(get_dbsearches_bp)
 app.register_blueprint(delete_dbsearch_bp)
 app.register_blueprint(cancel_dbsearch_bp)
 app.register_blueprint(get_run_bp)
+app.register_blueprint(get_error_message_bp)
 app.register_blueprint(get_image_bp)
 app.register_blueprint(read_file_bp)
 app.register_blueprint(server_path_bp)

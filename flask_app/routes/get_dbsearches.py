@@ -25,6 +25,7 @@ def get_dbsearches():
         refseq_response = find('refseq', query)
         genbank_response = find('genbank', query)
         dnaseq_response = find('dnaseq', query)
+        rnaseq_response = find('rnaseq', query)
         phylogeny_response = find('phylogeny', query)
 
         result = {
@@ -35,6 +36,7 @@ def get_dbsearches():
             'refseq': refseq_response['data'] if refseq_response['status'] == 'success' else [],
             'genbank': genbank_response['data'] if genbank_response['status'] == 'success' else [],
             'dnaseq': dnaseq_response['data'] if dnaseq_response['status'] == 'success' else [],
+            'rnaseq': rnaseq_response['data'] if rnaseq_response['status'] == 'success' else [],
             'phylogeny': phylogeny_response['data'] if phylogeny_response['status'] == 'success' else []
         }
         

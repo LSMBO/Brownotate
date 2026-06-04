@@ -3,7 +3,6 @@ import os
 from timer import timer
 from flask_app.utils import load_config
 from flask import Blueprint, request, jsonify
-import shutil
 from flask_app.commands import run_command
 
 config = load_config()
@@ -12,6 +11,32 @@ env['PATH'] = os.path.join(config['BROWNOTATE_ENV_PATH'], 'bin') + os.pathsep + 
 conda_bin_path = f"{config['BROWNOTATE_ENV_PATH']}/bin"
 
 run_split_assembly_bp = Blueprint('run_split_assembly_bp', __name__)
+
+
+def _compute_target_chunk_count(genome_size_mb, requested_cpus):
+    """
+    Choose a chunk count from genome size to avoid over-splitting small genomes.
+
+    Heuristic goals:
+    - very small genomes: avoid BLAT startup overhead (1-2 chunks)
+    - medium genomes: moderate parallelism (4-8 chunks)
+    - very large genomes: keep enough chunks for load balancing
+    """
+    if genome_size_mb <= 30:
+        target = 1
+    elif genome_size_mb <= 120:
+        target = 2
+    elif genome_size_mb <= 300:
+        target = 4
+    elif genome_size_mb <= 900:
+        target = 6
+    elif genome_size_mb <= 1800:
+        target = 8
+    else:
+        target = 12
+
+    # Avoid creating too many files when many CPUs are available.
+    return max(1, min(int(requested_cpus), target))
 
 @run_split_assembly_bp.route('/run_split_assembly', methods=['POST'])
 def run_split_assembly():
@@ -44,22 +69,25 @@ def run_split_assembly():
     fasta_records = SeqIO.parse(assembly_file_simplified, 'fasta')
     fasta_records = sorted(fasta_records, key=lambda x: len(x.seq), reverse=True)
 
-    # Get the total number of sequences
-    total_sequences = sum(1 for seq in fasta_records)
-    
-    # Check if the total number of sequences is less than cpus
-    if total_sequences < cpus:
-        cpus = total_sequences
-        
+    total_sequences = len(fasta_records)
+    total_bases = sum(len(record.seq) for record in fasta_records)
+    genome_size_mb = total_bases / (1024 * 1024)
+
+    # Dynamic chunk count based on genome size, then clamp by available contigs.
+    target_chunks = _compute_target_chunk_count(genome_size_mb, cpus)
+    chunk_count = min(total_sequences, target_chunks)
+
+    if chunk_count <= 0:
+        return jsonify({'status': 'error', 'message': 'No sequence found in assembly file', 'timer': timer.stop(start_time)}), 500
 
     # Create n empty lists
-    lists = [[] for i in range(cpus)]
+    lists = [[] for i in range(chunk_count)]
     
     # Assign each record to one of the n lists
     list_idx = 0
     for record in fasta_records:
         lists[list_idx].append(record)
-        list_idx = (list_idx + 1) % cpus
+        list_idx = (list_idx + 1) % chunk_count
     
     # Write each list of records to a separate file
     file_names = []

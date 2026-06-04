@@ -30,10 +30,15 @@ def get_waiting_time_annotation():
     
     timer_keys = [
         'Uploading sequencing files ',
+        'Uploading RNA sequencing files ',
         'Downloading sequencing files from SRA ',
+        'Downloading RNA sequencing files from SRA ',
         'Running fastp on sequencing files ',
         'Removing Phix from sequencing files ',
         'Running Megahit assembly ',
+        'Running Trinity transcriptome assembly ',
+        'Running RNA-Bloom transcriptome assembly ',
+        'Running TransDecoder protein prediction ',
         'Downloading assembly file from Ensembl FTP ',
         'Downloading assembly file from NCBI ',
         'Uploading assembly file ',

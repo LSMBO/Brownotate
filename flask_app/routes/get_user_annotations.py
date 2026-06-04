@@ -19,6 +19,7 @@ def get_user_annotations():
     updated_annotations = []
     progress_not_using_process = ["Downloading assembly file from Ensembl FTP ...", 
                                   "Downloading assembly file from NCBI ...", 
+                                  "Uploading RNA sequencing files ...",
                                   "Searching for evidences (proteins) in the databases ...",
                                   "Selecting and downloading evidences (proteins) from the database search ..."]
     for annotation in annotations['data']:

@@ -140,6 +140,15 @@ class UniprotTaxo:
         return self.trembl
 
     @staticmethod
+    def proteome_has_sequences(proteome_id):
+        url = f"https://rest.uniprot.org/uniprotkb/search?query=proteome:{proteome_id}&size=1&format=json"
+        response = get_url(url)
+        if not response:
+            return False
+        results = response.json().get("results", [])
+        return len(results) > 0
+
+    @staticmethod
     def search_proteome(taxid, limit=3):
         url = f"https://rest.uniprot.org/proteomes/search?query=(organism_id:{taxid})&size=500&format=json"
         response = get_url(url)
@@ -150,16 +159,19 @@ class UniprotTaxo:
             for result in results:
                 if proteome_count == limit:
                     return proteomes
+                proteome_id = result["id"]
+                if not UniprotTaxo.proteome_has_sequences(proteome_id):
+                    continue
                 proteome_type = result["proteomeType"]
                 proteomes.append({
                     "database": "UniprotKB",
                     "data_type": "uniprot_proteome",
-                    "accession": result["id"],
+                    "accession": proteome_id,
                     "proteome_type": proteome_type,
                     "scientific_name": result["taxonomy"]["scientificName"],
                     "taxid": result["taxonomy"]["taxonId"],
-                    "download_url": f"https://rest.uniprot.org/uniprotkb/stream?query=proteome:{result['id']}&format=fasta",
-                    "url": f"https://www.uniprot.org/proteomes/{result['id']}"
+                    "download_url": f"https://rest.uniprot.org/uniprotkb/stream?query=proteome:{proteome_id}&format=fasta",
+                    "url": f"https://www.uniprot.org/proteomes/{proteome_id}"
                 })
                 proteome_count += 1
         return proteomes

@@ -19,11 +19,27 @@ def download_uniprot():
         download_folder = create_download_folder() # f"user_download/{dd-mm-yyyy}"
         server_filename = os.path.join(config['BROWNOTATE_PATH'], download_folder, output_name) # /home/ubuntu/br/bin/Brownotate/{download_folder}/{output_name}
         
-        if os.path.exists(server_filename):
+        if os.path.exists(server_filename) and os.path.getsize(server_filename) > 0:
             return jsonify({'status': 'success', 'path': server_filename}), 200
+        if os.path.exists(server_filename) and os.path.getsize(server_filename) == 0:
+            os.remove(server_filename)
         
         print(f"wget -O {server_filename} {url}")
-        subprocess.run(['wget', '-O', server_filename, url], check=True, env=env)
+        subprocess.run(['wget', '--tries=3', '--timeout=30', '--max-redirect=10', '-O', server_filename, url], check=True, env=env)
+
+        if not os.path.exists(server_filename) or os.path.getsize(server_filename) == 0:
+            if os.path.exists(server_filename):
+                os.remove(server_filename)
+            return jsonify({'status': 'error', 'message': 'Downloaded UniProt file is empty.'}), 500
+
+        # Lightweight FASTA sanity check to catch empty payloads returned as success.
+        if str(output_name).lower().endswith('.fasta'):
+            with open(server_filename, 'r', encoding='utf-8', errors='ignore') as fh:
+                head = fh.read(4096)
+            if '>' not in head:
+                os.remove(server_filename)
+                return jsonify({'status': 'error', 'message': 'Downloaded UniProt file does not look like FASTA.'}), 500
+
         return jsonify({'status': 'success', 'path': server_filename}), 200
 
     except Exception as e:

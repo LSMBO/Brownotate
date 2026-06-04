@@ -5,9 +5,24 @@ import signal
 import os
 import time
 
+
+def _run_id_query(run_id):
+    """Build a tolerant query because run_id may be stored as str or int."""
+    candidates = [run_id, str(run_id)]
+    try:
+        candidates.append(int(run_id))
+    except (TypeError, ValueError):
+        pass
+    deduped = []
+    for candidate in candidates:
+        if candidate not in deduped:
+            deduped.append(candidate)
+    return {'run_id': {'$in': deduped}}
+
 def add_process(run_id, pid, command, cpus):
     insert_one('processes', {
-        'run_id': run_id,
+        # Store as string for consistency across routes and JSON payloads.
+        'run_id': str(run_id),
         'process_id': pid,
         'command': command,
         'cpus': cpus,
@@ -15,11 +30,11 @@ def add_process(run_id, pid, command, cpus):
     })
 
 def get_run_processes(run_id):
-    process = find('processes', {'run_id': run_id})
+    process = find('processes', _run_id_query(run_id))
     return process['data']
 
 def remove_run_processes(run_id):
-    delete('processes', {'run_id': run_id})
+    delete('processes', _run_id_query(run_id))
 
 def remove_process(process_id):
     delete_one('processes', {'process_id': process_id})

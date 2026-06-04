@@ -15,6 +15,7 @@ def get_dbsearch():
         refseq_response = find('refseq', {'taxid': taxid})
         genbank_response = find('genbank', {'taxid': taxid})
         dnaseq_response = find('dnaseq', {'taxid': taxid})
+        rnaseq_response = find('rnaseq', {'taxid': taxid})
 
         result = {
             'status': 'success',
@@ -23,6 +24,7 @@ def get_dbsearch():
             'refseq': get_most_recent(refseq_response),
             'genbank': get_most_recent(genbank_response),
             'dnaseq': get_most_recent(dnaseq_response),
+            'rnaseq': get_most_recent(rnaseq_response),
         }
         
         return jsonify(result), 200

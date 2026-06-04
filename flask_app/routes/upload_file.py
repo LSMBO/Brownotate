@@ -1,11 +1,23 @@
 from flask import Blueprint, request, jsonify
 from flask_app.database import update_one
-from flask_app.file_ops import create_upload_folder, handle_file_upload
+from flask_app.file_ops import create_upload_folder, handle_file_upload, cleanup_old_user_download_folders
 from flask_app.process_manager import add_process, remove_process
+from flask_app.utils import load_config
+import os
+import tempfile
+
 upload_file_bp = Blueprint('upload_file_bp', __name__)
+config = load_config()
 
 @upload_file_bp.route('/upload_file', methods=['POST'])
 def upload_file():
+    cleanup_old_user_download_folders()
+
+    # Large multipart uploads may spill to disk; ensure tempfile destination exists.
+    tmp_dir = os.environ.get('TMPDIR') or os.path.join(config['BROWNOTATE_PATH'], 'user_download', 'tmp')
+    os.makedirs(tmp_dir, exist_ok=True)
+    tempfile.tempdir = tmp_dir
+
     data = request.form
     run_id = data.get('run_id')
     file_type = data.get('type')
@@ -23,6 +35,8 @@ def upload_file():
             file_paths = file_paths[0]
         if file_type == "sequencing":
             file_parameters = "parameters.startSection.sequencingFileListOnServer"
+        elif file_type == "rna_sequencing":
+            file_parameters = "parameters.startSection.rnaSequencingFileListOnServer"
         elif file_type == "assembly":
             file_parameters = "parameters.startSection.assemblyFileOnServer"
         elif file_type == "evidence":

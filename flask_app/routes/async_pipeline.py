@@ -8,6 +8,9 @@ from flask_app.step_status import (
     mark_step_running,
     mark_step_success,
 )
+from flask_app.orchestration_engine import AnnotationOrchestrator
+from flask_app.database import find_one, update_one
+from bson.int64 import Int64
 
 async_pipeline_bp = Blueprint('async_pipeline_bp', __name__)
 
@@ -170,3 +173,123 @@ def run_busco_async():
 @async_pipeline_bp.route('/check_busco_status/<int:run_id>', methods=['GET'])
 def check_busco_status(run_id):
     return _check_status('busco')
+
+
+# =========================================================================
+# NEW UNIFIED ORCHESTRATION ROUTE
+# =========================================================================
+# This is the single main entry point for annotation runs.
+# Client sends all parameters once, server orchestrates everything.
+
+def _background_orchestrate(app, run_id, parameters, cpus):
+    """Run the orchestrator in background thread."""
+    try:
+        with app.app_context():
+            orchestrator = AnnotationOrchestrator(run_id, parameters, cpus, None)
+            orchestrator.orchestrate()
+    except Exception as e:
+        print(f"[ORCHESTRATOR] Error in background orchestration: {e}")
+        try:
+            with app.app_context():
+                for query in [
+                    {'parameters.id': Int64(run_id)},
+                    {'parameters.id': int(run_id)},
+                    {'parameters.id': str(run_id)},
+                ]:
+                    update_one('runs', query, {'$set': {'status': 'failed', 'error': str(e)}})
+        except:
+            pass
+
+
+@async_pipeline_bp.route('/run_annotation_orchestrated', methods=['POST'])
+def run_annotation_orchestrated():
+    """
+    Main orchestration route.
+    
+    Accepts full parameters and launches the entire annotation pipeline.
+    The server orchestrates all steps; client only polls for progress.
+    
+    Request payload:
+    {
+        "run_id": <int>,
+        "user": "<username>",
+        "parameters": { ... full parameters object ... },
+        "cpus": <int>
+    }
+    
+    Returns:
+    {
+        "status": "started",
+        "run_id": <int>,
+        "message": "Annotation pipeline orchestration started"
+    }
+    """
+    payload = request.json or {}
+    
+    run_id = payload.get('run_id')
+    if run_id is None:
+        return jsonify({
+            'status': 'error',
+            'message': 'run_id is required'
+        }), 400
+    
+    run_id = int(run_id)
+    parameters = payload.get('parameters', {})
+    cpus = payload.get('cpus', 4)
+    user = payload.get('user', 'unknown')
+    
+    if not parameters:
+        return jsonify({
+            'status': 'error',
+            'message': 'parameters are required'
+        }), 400
+    
+    # Verify run exists and is in correct state
+    try:
+        for query in [
+            {'parameters.id': Int64(run_id)},
+            {'parameters.id': int(run_id)},
+            {'parameters.id': str(run_id)},
+        ]:
+            run = find_one('runs', query)
+            run_data = run.get('data') if isinstance(run, dict) else None
+            if run.get('status') == 'success' and run_data:
+                current_progress = run_data.get('progress', [])
+                if isinstance(current_progress, list):
+                    progress_list = list(current_progress)
+                elif current_progress:
+                    progress_list = [current_progress]
+                else:
+                    progress_list = []
+
+                if not progress_list or progress_list[-1] != 'Starting orchestration...':
+                    progress_list.append('Starting orchestration...')
+
+                # Keep previously completed client-side setup/evidence steps visible in the run history.
+                update_one('runs', query, {'$set': {'status': 'running', 'progress': progress_list, 'error': ''}})
+                break
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': f'Run {run_id} not found'
+            }), 404
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Database error: {str(e)}'
+        }), 500
+    
+    # Launch orchestrator in background thread
+    app = current_app._get_current_object()
+    thread = threading.Thread(
+        target=_background_orchestrate,
+        args=(app, run_id, parameters, cpus)
+    )
+    thread.daemon = True
+    thread.start()
+    
+    return jsonify({
+        'status': 'started',
+        'run_id': run_id,
+        'message': 'Annotation pipeline orchestration started'
+    }), 200
